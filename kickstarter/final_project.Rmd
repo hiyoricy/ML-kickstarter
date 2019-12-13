@@ -24,6 +24,20 @@ output:
 
 #Description of the Problem
 
+First, some terms are defined to help explain how Kickstarter works. 
+
+A **creator** is the person or team behind a project idea. 
+
+A **project** is a finite work with a clear goal for which a creator is seeking funding.
+
+The **funding goal** is the amount of money that a creator seeks to raise for their project. 
+
+**Backers** are people who **pledge** money to help creators make their projects a reality. 
+
+Creators who seek funding on Kickstarter want their projects to succeed so they can bring their ideas to life. Funding on Kickstarter is all-or-nothing. This means the creator will not receive the money people have pledged toward their project unless the project reaches its funding goal. Thus, "success" in this case is reaching the funding goal. As demonstrated in Kickstarter's [Creator Handbook](https://www.kickstarter.com/help/handbook?ref=whatarebasics), creators put a lot of effort into designing their project, funding, promotion, and communication to increase their chances of reaching their funding goal. 
+
+The goal of this paper is to use attributes of existing Kickstarter projects in classifiers to predict whether a project will succeed or fail. Determining the atrributes of a project that are most valuable in predicting success can help creators design their projects to maximize their chances of reaching their funding goal. 
+
 #Description of the Data
 
 #Data Cleaning and Preparation
