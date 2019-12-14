@@ -53,18 +53,19 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 |Independent Variable|Description|
 |-----------------|--------------------------------|
 | `backers_count` | The number of backers that have pledged some amount of money to the project. |
-| `blurb` | A short description at the top of project pages that describe/promote the project. |
+| `blurb` | A short summary at the top of project pages that describe/promote the project. |
 | `category` | The category of the project. There are TODO??? total categories in the dataset, including "public Art," "software," "narrative film," etc. |
+| `slug` -> `description`| Select keywords to describe the project, renamed to description |
 | `converted_pledged_amount` | The amount pledged to the project in USD. |
 | `country` | The country in which the project is based. | 
 | `location` | The city and state in wich the project is based. |
 | `deadline` | The date and time (???) of the deadline until which the project will raise funds. After the deadline, the project is determined to be "successful" or "failed" depending on whether it reached its funding goal. |
 | `launched_at` | The date and time (???) at which the project was made public and started raising funds. |
-| `duration` | deadline - launched_at. The fundraising duration of the project. |
+| `duration_days` | deadline - launched_at. The fundraising duration of the project in days. |
 | `goal` | The funding goal of the project. |
 | `name` | The title of the project. |
 | `usd_pledged` | The amount pledged towards the project in USD. |
-| `staff_pick` | True if the Kickstarter staff have chosen to feature the project in their "Projects We Love" program, false otherwise. |
+| `staff_pick` | True if the Kickstarter staff have chosen to feature the project in their "Projects We Love" program, false otherwise. 
 
 # Data Cleaning and Preparation
 
@@ -104,41 +105,38 @@ dim(kick_data)
 colnames(kick_data)
 ```
 
+
 ```{r}
-#initial deletion of columns
-to_remove <- c("X.1", "creator", "currency_symbol", "currency_trailing_code", "current_currency", "disable_communication", "friends", "fx_rate", "is_backing", "permissions", "photo", "profile","source_url", "static_usd_rate","urls")
-kick_data <- kick_data %>% select(-to_remove)
+#filtering out duplicate entries by keeping the most recent item and additionally filtering by the unique column number in X
+kick_data.f <- kick_data %>% group_by(id)%>% filter(state_changed_at == max(state_changed_at)) %>% filter(X == max(X)) %>% rename(sub_id=X)
+```
+
+
+```{r}
+#selecting columns to use, temporarily selecting id columns for merging and identification
+to_use<- c("id", "sub_id",  "state", "backers_count", "blurb", "slug", "category", "converted_pledged_amount", "country","location", "deadline", "launched_at", "goal", "name","usd_pledged","staff_pick", "spotlight")
+kick_data.f <- kick_data.f %>% select(to_use)
 
 ```
 
 
 ```{r}
-#filtering out additional duplicates, keeping max state
-kick_data <- kick_data %>% group_by(id)%>% filter(state_changed_at == max(state_changed_at)) %>% filter(X == max(X)) %>% rename(sub_id=X)
+#converting launched_at and deadline to datetime formats
+dts <- kick_data.f$launched_at
+mydates = dts
+class(mydates) = c('POSIXt','POSIXct')
+kick_data.f$launched_at <- as.Date(mydates)
+
+dts <- kick_data.f$deadline
+mydates = dts
+class(mydates) = c('POSIXt','POSIXct')
+kick_data.f$deadline <-  as.Date(mydates)
 ```
 
 
 ```{r}
-#converting created_at, state_changed_at to datetime formats
-dts <- kick_data$created_at
-mydates = dts
-class(mydates) = c('POSIXt','POSIXct')
-kick_data$created_at <- as.Date(mydates)
-
-dts <- kick_data$state_changed_at
-mydates = dts
-class(mydates) = c('POSIXt','POSIXct')
-kick_data$state_changed_at <-  as.Date(mydates)
-
-dts <- kick_data$launched_at
-mydates = dts
-class(mydates) = c('POSIXt','POSIXct')
-kick_data$launched_at <- as.Date(mydates)
-
-dts <- kick_data$deadline
-mydates = dts
-class(mydates) = c('POSIXt','POSIXct')
-kick_data$deadline <-  as.Date(mydates)
+#calcuation duration of project in days
+kick_data.f$duration_days <- as.numeric(difftime(kick_data.f$deadline ,kick_data.f$launched_at , units = c("days")))
 ```
 
 ```{r}
@@ -149,12 +147,12 @@ ParseJSONColumn <- function(x)  {
      as.tibble()
 } 
 
-JSONcolumn_data <- kick_data  %>% 
+JSONcolumn_data <- kick_data.f  %>% 
     select(id, category)  %>% 
     map_dfc(.f = ParseJSONColumn)  %>% select(value, name, slug) %>% rename(id = value, category = name, subcategory = slug)
 
 
-kick_data.f <- kick_data %>% select(-category) %>% rename(description=slug)
+kick_data.f <- kick_data.f %>% select(-category) %>% rename(description=slug)
 
 kick_data.f <-  merge(kick_data.f, JSONcolumn_data ,by="id")
 
@@ -169,29 +167,45 @@ kick_data.f$location <- parsed_location$location
 
 
 ```{r}
-#filtering out the live projects
-kick_data.live <- kick_data.f %>% filter(state=="live")
-kick_data.f <- kick_data.f %>% filter(state != "live")
-```
-
-
-```{r}
-#creating predictor column
-kick_data.f$successful<- as.factor(ifelse(kick_data.f$state=="successful", 1, 0))
-```
-
-
-```{r}
 #converting types of columns
 kick_data.f$location <- as.factor(kick_data.f$location)
 kick_data.f$blurb <- as.character(kick_data.f$blurb)
 kick_data.f$description <- as.character(kick_data.f$description)
+kick_data.f$name <- as.character(kick_data.f$name)
+
+```
+
+```{r}
+#replacing dashes with spaces in descriptions column
+kick_data.f$description <- gsub("-", " ",kick_data.f$description)
+```
+
+```{r}
+#creating predictor column
+kick_data.f$successful<- as.factor(as.numeric(ifelse(kick_data.f$state=="successful", 1, 0)))
+```
+
+
+```{r}
+#filtering out the live projects
+kick_data.f.live <- kick_data.f %>% filter(state=="live")
+kick_data.f <- kick_data.f %>% filter(state != "live")
+```
+
+```{r}
+#double checking that we all desired columns and removing ids
+to_use<- c("state", "successful", "backers_count", "blurb", "category", "description", "converted_pledged_amount", "country","location", "deadline", "launched_at", "duration_days", "goal", "name","usd_pledged","staff_pick", "spotlight")
+
+
+kick_data.f <- kick_data.f %>% select(to_use)
 ```
 
 ```{r}
 #final state
 str(kick_data.f)
 ```
+
+
 
 # Model Overview
 
