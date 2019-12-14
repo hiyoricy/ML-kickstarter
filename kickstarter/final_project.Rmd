@@ -20,6 +20,14 @@ output:
     toc_depth: '4'
 ---
 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, ggplot2)
+
+```
+
 # Summary 
 
 # Description of the Problem
@@ -60,24 +68,36 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 
 # Data Cleaning and Preparation
 
+
 ```{r}
-# library(plyr)    
-# multMerge = function(mypath){
-#   filenames = list.files(path = mypath, full.names = TRUE)
-#   datalist = lapply(filenames, 
-#                     function(x){read.csv(file = x,
-#                                          header = TRUE,
-#                                          stringsAsFactors = FALSE)})
-#   Reduce(function(x,y) {merge(x, y, all = TRUE)}, datalist)
-# }
-# 
-# my_data <- multMerge("Kickstarter_2019-11-14T03_20_27_004Z")
+#function to merge csv files and write to one dataset
+
+#multMerge = function(mypath){
+#  filenames = list.files(path = mypath, full.names = TRUE)
+#  datalist = lapply(filenames, 
+#                    function(x){read.csv(file = x,
+#                                         header = TRUE,
+#                                         stringsAsFactors = FALSE)})
+#  Reduce(function(x,y) {merge(x, y, all = TRUE)}, datalist)
+#}
+
+#my_data <- multMerge("Kickstarter_2019-11-14T03_20_27_004Z")
+
+#mydata <- my_data %>% unique() #unique columns
+
+#write.csv(my_data,"kick_data.csv", row.names = TRUE)
+```
+
+```{r}
+#to import dataset
+kick_data <- read.csv("kick_data.csv", header=TRUE)
 
 ```
 
 ```{r}
-# my_data
+dim(kick_data)
 ```
+
 
 # Model Overview
 
