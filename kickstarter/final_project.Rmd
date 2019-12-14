@@ -105,7 +105,6 @@ dim(kick_data)
 colnames(kick_data)
 ```
 
-
 ```{r}
 #filtering out duplicate entries by keeping the most recent item and additionally filtering by the unique column number in X
 kick_data.f <- kick_data %>% group_by(id)%>% filter(state_changed_at == max(state_changed_at)) %>% filter(X == max(X)) %>% rename(sub_id=X)
@@ -160,9 +159,15 @@ kick_data.f <-  merge(kick_data.f, JSONcolumn_data ,by="id")
 
 ```{r}
 #extracting locations through string splits
-parsed_location <- kick_data.f %>% separate(location, c("foo", "bar"), '\"displayable_name\":\"') %>% select(foo,bar) %>% separate(bar, c("location", "foo2"), '\",\"') %>% select(location)
+parsed_location <- kick_data.f %>% separate(location, c("foo", "bar"), '\"displayable_name\":\"') %>% select(foo,bar) %>% separate(bar, c("location", "foo2"), '\",\"') %>%  separate(location, c("foo", "location"), ', ')  %>% select(location)
 
 kick_data.f$location <- parsed_location$location
+
+northeast =c('CT', 'ME', 'MA', 'NH', 'RI', 'VT', 'NJ', 'NY', 'PA')
+midwest = c('IL', 'IN', 'MI', 'OH', 'WI', 'IA', 'KS', 'MN', 'MO', 'NE', 'ND', 'SD')
+west =c('AZ', 'CO', 'ID', 'MT', 'NV', 'NM', 'UT', 'WY', 'AL', 'CA', 'HI', 'OR', 'WA')
+south = c('MD', 'DE', 'VA', 'WV','KY','TN','NC', "SC", "FL", "GA", "AL", "MS", "LA", "AK", "TK", "OK")
+kick_data.f$location <- ifelse(kick_data.f$location %in% northeast, "US-Northeast", ifelse(kick_data.f$location %in% midwest, "US-Midwest", ifelse(kick_data.f$location %in% west, "US-West", ifelse(kick_data.f$location %in% south, "US-South", kick_data.f$location))))
 ```
 
 
@@ -176,7 +181,7 @@ kick_data.f$name <- as.character(kick_data.f$name)
 ```
 
 ```{r}
-#replacing dashes with spaces in descriptions column
+#replacing dashes with spaces in descriptions column and removing _truncated_ tag in blurb
 kick_data.f$description <- gsub("-", " ",kick_data.f$description)
 ```
 
