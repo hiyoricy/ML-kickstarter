@@ -24,7 +24,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(dplyr, ggplot2)
+pacman::p_load(dplyr, ggplot2, tidyverse, jsonlite, lubridate, zoo)
 
 ```
 
@@ -97,6 +97,74 @@ kick_data <- read.csv("kick_data.csv", header=TRUE)
 ```{r}
 dim(kick_data)
 ```
+
+```{r}
+colnames(kick_data)
+```
+
+```{r}
+head(kick_data)
+```
+
+```{r}
+#initial deletion of columns
+to_remove <- c("X.1", "creator", "currency_symbol", "currency_trailing_code", "disable_communication", "friends", "fx_rate", "is_backing", "permissions", "photo", "profile","source_url", "static_usd_rate","urls")
+kick_data <- kick_data %>% select(-to_remove)
+
+```
+
+
+```{r}
+#filtering out additional duplicates, keeping max state
+kick_data <- kick_data %>% group_by(id)%>% filter(state_changed_at == max(state_changed_at)) %>% filter(X == max(X)) %>% rename(sub_id=X)
+```
+
+
+```{r}
+#converting created_at, state_changed_at to datetime formats
+dts <- kick_data$created_at
+mydates = dts
+class(mydates) = c('POSIXt','POSIXct')
+kick_data$created_at <- as.Date(mydates)
+
+dts <- kick_data$state_changed_at
+mydates = dts
+class(mydates) = c('POSIXt','POSIXct')
+kick_data$state_changed_at <-  as.Date(mydates)
+```
+
+s
+
+```{r}
+#parsing our json data to extract categories 
+ParseJSONColumn <- function(x)  {
+     gsub(",,", ",", str_c("[ ", str_c(x, collapse = ",", sep=" "), " ]"))  %>% 
+     %>% fromJSON(flatten = T) %>% 
+     as.tibble()
+} 
+
+JSONcolumn_data <- kick_data  %>% 
+    select(id, category)  %>% 
+    map_dfc(.f = ParseJSONColumn)  %>% select(value, name, slug) %>% rename(id = value, category = name, subcategory = slug)
+
+
+kick_data.f <- kick_data %>% select(-category) %>% rename(description=slug)
+
+kick_data.f <-  merge(kick_data.f, JSONcolumn_data ,by="id")
+
+```
+
+
+```{r}
+
+kick_data  %>% 
+    select(location)  %>% 
+    map_dfc(.f = ParseJSONColumn) 
+
+```
+
+
+
 
 
 # Model Overview
