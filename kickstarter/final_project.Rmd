@@ -68,7 +68,6 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 
 # Data Cleaning and Preparation
 
-
 ```{r}
 #function to merge csv files and write to one dataset
 
@@ -91,7 +90,10 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 ```{r}
 #to import dataset
 kick_data <- read.csv("kick_data.csv", header=TRUE)
+```
 
+```{r}
+head(kick_data)
 ```
 
 ```{r}
@@ -103,12 +105,8 @@ colnames(kick_data)
 ```
 
 ```{r}
-head(kick_data)
-```
-
-```{r}
 #initial deletion of columns
-to_remove <- c("X.1", "creator", "currency_symbol", "currency_trailing_code", "disable_communication", "friends", "fx_rate", "is_backing", "permissions", "photo", "profile","source_url", "static_usd_rate","urls")
+to_remove <- c("X.1", "creator", "currency_symbol", "currency_trailing_code", "current_currency", "disable_communication", "friends", "fx_rate", "is_backing", "permissions", "photo", "profile","source_url", "static_usd_rate","urls")
 kick_data <- kick_data %>% select(-to_remove)
 
 ```
@@ -131,15 +129,23 @@ dts <- kick_data$state_changed_at
 mydates = dts
 class(mydates) = c('POSIXt','POSIXct')
 kick_data$state_changed_at <-  as.Date(mydates)
-```
 
-s
+dts <- kick_data$launched_at
+mydates = dts
+class(mydates) = c('POSIXt','POSIXct')
+kick_data$launched_at <- as.Date(mydates)
+
+dts <- kick_data$deadline
+mydates = dts
+class(mydates) = c('POSIXt','POSIXct')
+kick_data$deadline <-  as.Date(mydates)
+```
 
 ```{r}
 #parsing our json data to extract categories 
 ParseJSONColumn <- function(x)  {
-     gsub(",,", ",", str_c("[ ", str_c(x, collapse = ",", sep=" "), " ]"))  %>% 
-     %>% fromJSON(flatten = T) %>% 
+     str_c("[ ", str_c(x, collapse = ",", sep=" "), " ]") %>% 
+      fromJSON(flatten = T) %>% 
      as.tibble()
 } 
 
@@ -154,18 +160,38 @@ kick_data.f <-  merge(kick_data.f, JSONcolumn_data ,by="id")
 
 ```
 
-
 ```{r}
+#extracting locations through string splits
+parsed_location <- kick_data.f %>% separate(location, c("foo", "bar"), '\"displayable_name\":\"') %>% select(foo,bar) %>% separate(bar, c("location", "foo2"), '\",\"') %>% select(location)
 
-kick_data  %>% 
-    select(location)  %>% 
-    map_dfc(.f = ParseJSONColumn) 
-
+kick_data.f$location <- parsed_location$location
 ```
 
 
+```{r}
+#filtering out the live projects
+kick_data.live <- kick_data.f %>% filter(state=="live")
+kick_data.f <- kick_data.f %>% filter(state != "live")
+```
 
 
+```{r}
+#creating predictor column
+kick_data.f$successful<- as.factor(ifelse(kick_data.f$state=="successful", 1, 0))
+```
+
+
+```{r}
+#converting types of columns
+kick_data.f$location <- as.factor(kick_data.f$location)
+kick_data.f$blurb <- as.character(kick_data.f$blurb)
+kick_data.f$description <- as.character(kick_data.f$description)
+```
+
+```{r}
+#final state
+str(kick_data.f)
+```
 
 # Model Overview
 
