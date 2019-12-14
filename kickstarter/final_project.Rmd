@@ -187,7 +187,7 @@ kick_data.f$successful<- as.factor(as.numeric(ifelse(kick_data.f$state=="success
 
 
 ```{r}
-#filtering out the live projects
+#filtering out the live projects, but storing them in a seperate place
 kick_data.f.live <- kick_data.f %>% filter(state=="live")
 kick_data.f <- kick_data.f %>% filter(state != "live")
 ```
