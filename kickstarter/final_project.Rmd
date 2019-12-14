@@ -18,6 +18,7 @@ output:
   word_document:
     toc: yes
     toc_depth: '4'
+urlcolor: blue
 ---
 
 
@@ -48,19 +49,19 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 
 # Description of the Data
 
-[Web Robots](https://webrobots.io/kickstarter-datasets/) has been scraping data from Kickstarter projects monthly starting March 2016. The most recent data from November 2019 is used in this project. The response variable that is predicted in this project is `state`, a categorical variable that is either "successful" or "failed". The original data includes "canceled" as a state, which are converted to "failed". This is because it is assumed that canceled projects would likely have failed. The following independent variables are considered in the analysis: 
+[Web Robots](https://webrobots.io/kickstarter-datasets/) has been scraping data from Kickstarter projects monthly starting March 2016. The most recent data from November 2019 is used in this project. The response variable that is predicted in this project is `successful`, a categorical variable that is either 1 for "successful" or 0 for "failed". The original data includes "canceled" as a state, which are converted to "failed". This is because it is assumed that canceled projects would likely have failed. The following independent variables are considered in the analysis: 
 
 |Independent Variable|Description|
 |-----------------|--------------------------------|
 | `backers_count` | The number of backers that have pledged some amount of money to the project. |
 | `blurb` | A short summary at the top of project pages that describe/promote the project. |
-| `category` | The category of the project. There are TODO??? total categories in the dataset, including "public Art," "software," "narrative film," etc. |
+| `category` | The category of the project. This dataset includes 160 different categories, including "public Art," "software," "narrative film," etc. |
 | `slug` -> `description`| Select keywords to describe the project, renamed to description |
 | `converted_pledged_amount` | The amount pledged to the project in USD. |
 | `country` | The country in which the project is based. | 
 | `location` | The city and state in wich the project is based. |
-| `deadline` | The date and time (???) of the deadline until which the project will raise funds. After the deadline, the project is determined to be "successful" or "failed" depending on whether it reached its funding goal. |
-| `launched_at` | The date and time (???) at which the project was made public and started raising funds. |
+| `deadline` | The date and time of the deadline until which the project will raise funds. After the deadline, the project is determined to be "successful" or "failed" depending on whether it reached its funding goal. |
+| `launched_at` | The date and time at which the project was made public and started raising funds. |
 | `duration_days` | deadline - launched_at. The fundraising duration of the project in days. |
 | `goal` | The funding goal of the project. |
 | `name` | The title of the project. |
@@ -68,25 +69,6 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 | `staff_pick` | True if the Kickstarter staff have chosen to feature the project in their "Projects We Love" program, false otherwise. 
 
 # Data Cleaning and Preparation
-
-```{r}
-#function to merge csv files and write to one dataset
-
-#multMerge = function(mypath){
-#  filenames = list.files(path = mypath, full.names = TRUE)
-#  datalist = lapply(filenames, 
-#                    function(x){read.csv(file = x,
-#                                         header = TRUE,
-#                                         stringsAsFactors = FALSE)})
-#  Reduce(function(x,y) {merge(x, y, all = TRUE)}, datalist)
-#}
-
-#my_data <- multMerge("Kickstarter_2019-11-14T03_20_27_004Z")
-
-#mydata <- my_data %>% unique() #unique columns
-
-#write.csv(my_data,"kick_data.csv", row.names = TRUE)
-```
 
 ```{r}
 #to import dataset
@@ -177,7 +159,7 @@ kick_data.f$location <- as.factor(kick_data.f$location)
 kick_data.f$blurb <- as.character(kick_data.f$blurb)
 kick_data.f$description <- as.character(kick_data.f$description)
 kick_data.f$name <- as.character(kick_data.f$name)
-
+kick_data.f$category <- as.factor(kick_data.f$category)
 ```
 
 ```{r}
@@ -209,8 +191,6 @@ kick_data.f <- kick_data.f %>% select(to_use)
 #final state
 str(kick_data.f)
 ```
-
-
 
 # Model Overview
 
