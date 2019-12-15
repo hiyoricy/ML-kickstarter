@@ -30,9 +30,9 @@ pacman::p_load(car, dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,
 
 # Summary 
 
-The dataset that we used comes from scraping kickstarter projects across 2019 (https://webrobots.io/kickstarter-datasets/?fbclid=IwAR2_FwI9w0M7loFhTbALyzQ0knddvD8M6IPqYQKuJ-jAP2gAc9vr4CEz95o) and consists of various characteristics of these crowdsourced companies/projects. Our dataset captures all past and current kickstarter project postings as of the November 14, 2019 scrape date from the website. 
+The dataset that we used comes from [scraping kickstarter projects across 2019] (https://webrobots.io/kickstarter-datasets/?fbclid=IwAR2_FwI9w0M7loFhTbALyzQ0knddvD8M6IPqYQKuJ-jAP2gAc9vr4CEz95o) and consists of various characteristics of these crowdsourced companies/projects. Our dataset captures all past and current kickstarter project postings as of the November 14, 2019 scrape date from the website. 
 
-As the burgeoning landscape of startups are shifting towards alternative sources of funding outside traditional Venture Capital funding (https://www.nytimes.com/2019/01/11/technology/start-ups-rejecting-venture-capital.html) , an increasing number of founders are turning towards crowdsourcing. Kickstarter (https://help.kickstarter.com/hc/en-us/articles/115005028514-What-are-the-basics-) is arguably the most well known crowdsourcing online platform where founders can post their projects for financial backing. Since Kickstarter’s founding in 2009, over 450,000 projects have successfully raised more than $4.6 billion on the platform from 17.2 million friends, family and fans who want to help get those ventures off the ground. These supporters, officially termed backers by Kickstarter, are the cardinal drivers in this grassroots-style fundraising strategy of the entrepreneurship ecosystem. Importantly, while founders are turning to these crowdsourcing methods for purposes of de-risking and reducing financial leverage from external institutions, it currently has a 37.44% success rate (https://www.statista.com/statistics/235405/kickstarter-project-funding-success-rate/) as defined by the multinational data portal, Statista. As such, we are interested in building a predictive classification model that can forecast the success of a Kickstarter project based on its features. For advisory purposes, we hope that this project’s multifactorial analysis can provide insight into critical characteristics of a successful project on Kickstarter for recommendation to future companies hoping to raise capital via online crowdsourcing. Beyond a founder’s perspective, our analysis is also insightful for cases of dual-financing where investors and financial analysts from the sell-side are able to adjust project valuation based on our model results.  
+As the burgeoning landscape of startups are shifting towards [alternative sources of funding outside traditional Venture Capital funding] (https://www.nytimes.com/2019/01/11/technology/start-ups-rejecting-venture-capital.html) , an increasing number of founders are turning towards crowdsourcing. [Kickstarter] (https://help.kickstarter.com/hc/en-us/articles/115005028514-What-are-the-basics-) is arguably the most well known crowdsourcing online platform where founders can post their projects for financial backing. Since Kickstarter’s founding in 2009, over 450,000 projects have successfully raised more than $4.6 billion on the platform from 17.2 million friends, family and fans who want to help get those ventures off the ground. These supporters, officially termed backers by Kickstarter, are the cardinal drivers in this grassroots-style fundraising strategy of the entrepreneurship ecosystem. Importantly, while founders are turning to these crowdsourcing methods for purposes of de-risking and reducing financial leverage from external institutions, it currently has a [37.44% success rate] (https://www.statista.com/statistics/235405/kickstarter-project-funding-success-rate/) as defined by the multinational data portal, Statista. As such, we are interested in building a predictive classification model that can forecast the success of a Kickstarter project based on its features. For advisory purposes, we hope that this project’s multifactorial analysis can provide insight into critical characteristics of a successful project on Kickstarter for recommendation to future companies hoping to raise capital via online crowdsourcing. Beyond a founder’s perspective, our analysis is also insightful for cases of dual-financing where investors and financial analysts from the sell-side are able to adjust project valuation based on our model results.  
 
 
 # Description of the Problem
@@ -128,7 +128,6 @@ Then, we proceeded to create our `duration_days` column to indicate the timespan
 kick_data.f$duration_days <- as.numeric(difftime(kick_data.f$deadline ,kick_data.f$launched_at , units = c("days")))
 ```
 
-
 Next, we needed to handle to json data within the `category` and `location` columns. For the `category` column, we were able to successfully transform the data into a json and extract the `category` and `subcategory` columns. However, the location column had some erroneous formatting, and we thus manually extracted the name with string manipulation searching for the `displayable_name` tag. In order to cut down the number of unique locations, we also only preserved the country of origin. For projects in the United States, we seperated them by US Region.
 
 ```{r}
@@ -161,7 +160,6 @@ kick_data.f$location <- ifelse(kick_data.f$location %in% northeast, "US-Northeas
 
 ```
 
-
 Next, we converted various columns to our desired variable type. We also further cleaned the `description` column to get rid of the hyphens between each words.
 ```{r}
 #converting types of columns
@@ -174,7 +172,6 @@ kick_data.f$category <- as.factor(kick_data.f$category)
 #replacing dashes with spaces in descriptions column and removing _truncated_ tag in blurb
 kick_data.f$description <- gsub("-", " ",kick_data.f$description)
 ```
-
 
 Finally, we created our indicator column to predict on. First, we filtered out the `live` projects as those were still ongoing and thus were not properly concluded. For the remaining projects, we classified all projects with the `state`, `successful` as 1, while `failed` and `canceled` projects would be 0.
 
@@ -657,12 +654,9 @@ According to MCE, the most accurate model is the Random Forest model because it 
 
 # Final Model 
 
-<<<<<<< HEAD
 Overall, we determine the final model across our various trails is the feature-engineered logistic regression that holds the text. Via text mining on the company names and description, we were able to include the additional information from text data in our predictive model. These additional features we engineered allowed us to construct a more accurate logisitc model after accounting for regularization from the Elastic Net that we also applied. The process from text mining to applying LASSO/Elastic Net to finally assessing the accuracy of our model via the MCE and aucROC allow us to conclude the important nature of text data and the significant company statistics in predicting the success of a kickstarter project. 
 
 # Validity of Results and Future Improvement
-=======
-# Validity of Results and Future Improvement 
 
 Some limitations of this model include the following. First, only data from November was used because including more data would have been too computationally overwhelming. Similarly, only a randomly sampled quarter of the November data was used for computational reasons. However, even after limiting the dataset, a significant amount of data (21351 observations) was used. Moreover, our model is ultimately predicting on the final state of the projects as opposed to predicting while the project is ongoing. We did not explore this because we are not quite adept at handling time series data, but we believe a future challenge could be prediciting projects during their live state as opposed to their final state.
 
