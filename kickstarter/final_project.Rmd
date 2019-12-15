@@ -269,15 +269,27 @@ names(cat_counts)[which.min(cat_counts)]
 min(cat_counts)
 ```
 
-Among the 160 categories included in the dataset, "Web" is the most popular, with 429 projects. ???Idk how else to EDA category???
+Among the 160 categories included in the dataset, "Web" is the most popular, with 429 projects. ???show top 10???
 
 ???Backers Count Histogram???
 
-The distribution of `backers_count` is skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. 
+The distribution of `backers_count` is highly skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. Because this high 
 
 ```{r}
+data.t1 <- data %>% filter(backers_count < 500)
+
+
+data.t1 %>% count()
+```
+
+
+```{r}
+boxplot.backers <- boxplot(data.t1$backers_count, breaks = 40, xlab = "Backers Count", 
+               main = "Histogram of Backers Count",col = brewer.pal(22, name="YlGn"))
+#remove everything above 1950
+
 #histogram of backers_count
-histogram <- hist(data$backers_count, breaks = 40, xlab = "Backers Count", 
+histogram.backers <- hist(data.t1$backers_count, breaks = 40, xlab = "Backers Count", 
                main = "Histogram of Backers Count",col = brewer.pal(22, name="YlGn"))
 summary(data$backers_count)
 sd(data$backers_count)
