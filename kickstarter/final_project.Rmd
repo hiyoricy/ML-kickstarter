@@ -25,7 +25,7 @@ urlcolor: blue
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo)
+pacman::p_load(dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud)
 
 
 ```
@@ -213,6 +213,10 @@ sum(is.na(kick_data.f$location))
 sum(is.na(kick_data.f$blurb))
 ```
 
+```{r}
+kick_data.f <- na.omit(kick_data.f)
+```
+
 The original dataset includes 85523 observations and 16 variables. For computational reasons, a quarter of the dataset is randomly sampled and used for the models instead of the entire dataset. 
 
 ```{r}
@@ -320,7 +324,164 @@ The testing missclassification error of the logistic regression model is about 0
 ## Random Forest
 
 
+## Text Mining 
 
+As an alternative model, we wanted to explore whether or not we could utilize text data contained within the `blurb` column to predict whether or not a company will be successful.
+
+First, we isolated the text data:
+```{r}
+data1.text <- data$blurb
+print(data1.text[1:5]) # view a few documents
+```
+
+Overall, it appears as if the blurbs are roughly the same length. This is most likely due to the fact that there is a restriction on length for these blurbs on Kickstarter.
+
+### Corpus: a collection of text
+
+Here, we move onto creating our corpus.
+
+```{r}
+mycorpus1 <- VCorpus( VectorSource(data1.text))
+mycorpus1
+```
+
+### Data cleaning using `tm_map()`
+
+Before we transform our text into a word frequency matrix, we needed to standardized the text. Similar to our model in class, we used  `removeNumbers()`, `removePunctuation()`, `removeWords()`, `stemDocument()`, and `stripWhitespace()` to go about cleaning our data.
+
+```{r}
+mycorpus_clean <- tm_map(mycorpus1, content_transformer(tolower))
+mycorpus_clean <- tm_map(mycorpus_clean, removeWords, stopwords("english"))
+mycorpus_clean <- tm_map(mycorpus_clean, removePunctuation)
+mycorpus_clean <- tm_map(mycorpus_clean, removeNumbers)
+mycorpus_clean <- tm_map(mycorpus_clean, stemDocument, lazy = TRUE)
+```
+
+### Word frequency matrix
+
+Now we transform each review into a word frequency matrix using the function `DocumentTermMatrix()`.
+
+```{r}
+dtm1 <- DocumentTermMatrix( mycorpus_clean )   ## library = collection of words for all documents
+```
+
+
+Intially, there are a total of 26541 words that could be utilized as predictors. This is clearly, too many, so we decided to cut down the bag to only include the words appearing at least 1% (or the frequency of your choice) of the time to reduce the dimension of the features extracted to be analyzed. 
+
+```{r}
+threshold <- .01*length(mycorpus_clean)   # 1% of the total documents 
+words.10 <- findFreqTerms(dtm1, lowfreq=threshold)  # words appearing at least among 1% of the documents
+```
+
+```{r}
+dtm.10<- DocumentTermMatrix(mycorpus_clean, control = list(dictionary = words.10))  
+dim(as.matrix(dtm.10))
+colnames(dtm.10)[1:25]
+```
+
+In the end, we ended up with 167 possible words to utilize as predictors.
+
+### Data preparation
+Next, we used lasso to see what words are actually meaningful predictors for our data.
+
+```{r, eval=F}
+#data.text <- data %>% select(successful, category, country, duration_days, backers_count, deadline, goal, usd_pledged)
+# Combine the original data with the text matrix
+data1.temp <- data.frame(as.matrix(dtm.10))   
+data1.temp$successful <- data$successful
+data2 <- data1.temp %>% select(successful, everything())
+```
+
+```{r}
+#splitting our data into train test splits
+set.seed(1)
+n=nrow(data2)
+test.index <- sample(n, 0.3*n)
+length(test.index)
+data2.test <- data2[test.index, ] # only keep rating and the texts
+data2.train <- data2[-test.index, ]
+names(data2.train)
+```
+
+###LASSO
+
+```{r}
+y.n <- data2.train$successful
+X.n <- as.matrix(data2.train[, -c(1)]) # we can use as.matrix directly here
+set.seed(1)
+#### Be careful to run the following LASSO.
+result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0, family="binomial")  # 10 minutes in my MAC
+# save(result.lasso, file="/Users/lzhao/Dropbox/STAT471/Data/TextMining.RData")
+```
+
+```{r}
+plot(result.lasso.text)
+beta.lasso <- coef(result.lasso.text, s="lambda.min")   # output lasso estimates
+beta <- beta.lasso[which(beta.lasso !=0),] # non zero beta's
+beta <- as.matrix(beta)
+beta <- rownames(beta)
+```
+
+Taking a look at our lasso plot, we observe that lasso actually did not cut down any of the words. This suggests that there are no absolutely significant words that are included the description that can lead to success versus failure. Nevertheless, we decided to run a logistic regression on the word frequencies.
+
+```{r}
+# Input the words from LASSO into glm
+glm.input <- as.formula(paste("successful", "~", paste(beta[-1],collapse = "+"))) # prepare the formulae
+result.glm <- glm(glm.input, family=binomial, data2.train ) # instantly 
+
+# Testing errors
+
+predict.glm <- predict(result.glm, data2.test, type = "response")
+class.glm <- rep("0", nrow(data2.test))
+class.glm[predict.glm > .5] <- "1"
+
+testerror.glm <- mean(data2.test$successful != class.glm)
+testerror.glm
+pROC::roc(data2.test$successful, predict.glm, plot=T) 
+```
+
+Using just the word frequency data, we got a much higher testing error of 0.36455. Using ROC, we saw an area under the curve of 0.6801. This higher error and lower accuracy shows that text data may not be the best in terms of helping us predict whether or not the product will be successful. This shows the overall subjectivity of the ratings.
+
+
+###Additional Supplement: Wordclouds
+
+Here, we wanted to see whether or not we could visually see a difference between the words common to successful products versus words common to the ones that failed.
+
+```{r, message=FALSE, warning=FALSE, results= TRUE}
+result.glm.coef <- coef(result.glm)
+
+# pick up the positive coef's which are positively related to the prob of being a good review
+success.glm <- result.glm.coef[which(result.glm.coef > 0)]
+success.glm <-success.glm[-1]  # took intercept out
+
+cor.special <- brewer.pal(8,"Dark2")  # set up a pretty color scheme
+success.fre <- sort(success.glm, decreasing = TRUE) # sort the coef's
+round(success.fre, 4)[1:20] # leading 20 positive words, amazing!
+
+# hist(as.matrix(good.fre), breaks=30, col="red") 
+success.word <- names(success.fre)  # good words with a decreasing order in the coeff's
+
+
+fail.glm <- result.glm.coef[which(result.glm.coef < 0)]
+# names(bad.glm)[1:50]
+cor.special <- brewer.pal(6,"Dark2")
+fail.fre <- sort(-fail.glm, decreasing = TRUE)
+round(fail.fre, 4)[1:20]
+# hist(as.matrix(bad.fre), breaks=30, col="green")
+fail.word <- names(fail.fre)
+
+par(mfrow=c(1,2))
+cor.special <- brewer.pal(8,"Dark2") 
+wordcloud(good.word[1:20], good.fre[1:20], 
+          colors=cor.special, ordered.colors=F)
+wordcloud(bad.word[1:20], bad.fre[1:20], 
+          color=cor.special, ordered.colors=F)
+par(mfrow=c(1,1))
+
+```
+
+
+Here, we see that "pin", which indicates whether or not it was on the front page, was the highest scoring word. This word was most likely autogenerated by Kickstarter and placed into the blurb for the projects that were doing well. Further analysis would look to probably remove this word in order to not give the model an advantage. Interestingly, we see words related to art/culture such as "comic" "modern" enamel" and "illust" to be dominant in successful businesses, whereas words related to business such as "app", "busi", "even", "product" were more common to the projects that failed. This seems to suggest that companies with more creative/art focused projects do better on kickstarter as opposed to "strictly business" companies.
 
 # Comparison of Methods 
 
