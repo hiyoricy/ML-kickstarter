@@ -1,5 +1,5 @@
 ---
-title: "[CATCHY TITLE]"
+title: "How to Get a Kickstart: An Analysis of Kickstarter Success"
 author:
 - Hoyt Gong
 - Younghu Park
