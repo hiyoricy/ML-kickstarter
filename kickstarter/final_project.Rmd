@@ -75,7 +75,7 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 kick_data <- read.csv("kick_data.csv", header=TRUE)
 ```
 
-```{r}
+```{r include = FALSE}
 head(kick_data)
 ```
 
@@ -98,9 +98,8 @@ Next, we wanted to filter down our columns to the ones we detailed above. We als
 
 ```{r}
 #selecting columns to use, temporarily selecting id columns for merging and identification
-to_use<- c("id", "sub_id",  "state", "backers_count", "blurb", "slug", "category", "converted_pledged_amount", "country","location", "deadline", "launched_at", "goal", "name","usd_pledged","staff_pick", "spotlight")
+to_use<- c("id", "sub_id",  "state", "backers_count", "blurb", "slug", "category", "converted_pledged_amount", "country","location", "deadline", "launched_at", "goal", "name","usd_pledged","staff_pick")
 kick_data.f <- kick_data.f %>% select(to_use)
-
 ```
 
 
@@ -201,13 +200,6 @@ kick_data.f <- kick_data.f %>% select(to_use)
 kick_data.f <- subset(kick_data.f, select = -converted_pledged_amount)
 ```
 
-
-```{r}
-#final state
-str(kick_data.f)
-dim(kick_data.f)
-```
-
 ```{r, include=FALSE}
 #check which variables have NAs 
 sapply(kick_data.f, function(x) any(is.na(x))) # any(is.na(var)) is very useful, it returns T/F for each var
@@ -215,28 +207,30 @@ apply(kick_data.f, 2, function(x) any(is.na(x))) == TRUE  # apply function by co
 apply(kick_data.f, 1, function(x) any(is.na(x)))  # apply function by rows: row-wise missing
 ```
 
-The only columns with NAs appear to be `location` and `blurb.` There is one NA in `blurb` and 117 NAs in `location.` Since 117 is a significant number of NAs and there is no reasonable way to interpolate the names of cities in which projects are based, `location` is not considered in the following models.  
+The only columns with NAs appear to be `location` and `blurb.` There is one NA in `blurb` and 117 NAs in `location.` Since there is no reasonable way to interpolate the names of cities in which projects are based or the blurb of the project, rows that have NA values in `location` or `blurb` are removed from the dataset.   
 
-```{r}
+```{r include =FALSE}
 sum(is.na(kick_data.f$location))
 sum(is.na(kick_data.f$blurb))
 ```
 
-```{r}
+```{r include=FALSE}
 kick_data.f <- na.omit(kick_data.f)
+dim(kick_data.f)
+str(kick_data.f)
 ```
 
-The original dataset includes 85523 observations and 16 variables. For computational reasons, a quarter of the dataset is randomly sampled and used for the models instead of the entire dataset. 
+The dataset includes 85405 observations and 15 variables. For computational reasons, a quarter of the dataset is randomly sampled and used for the models instead of the entire dataset. 
 
 ```{r}
 set.seed(10)
 #First randomly sample a quarter of the data for computational purposes
 sample.size <- round(dim(kick_data.f) * 0.25)
 index.sample <- sample(nrow(kick_data.f), sample.size)
-data <- kick_data.f[index.sample, ] #dim(data) = 21381    16
+data <- kick_data.f[index.sample, ] #dim(data) = 21351        15
 ```
 
-The final dataset used for the models includes 21381 observations and 16 variables. 
+The final dataset used for the models includes 21351 observations and 15 variables. 
 
 The final dataset is split into training and testing sets, 70% for training and 30% for testing. 
 
@@ -247,8 +241,8 @@ set.seed(10)
 # use the 70/30 rule: set the training dataset size to be 70% of data size and testing to be 30%
 train.size <- round(dim(data) * 0.7)
 index.t <- sample(nrow(data), train.size)
-train <- data[index.t, ] #dim(train) = 14967    16
-test <- data[-index.t, ] #dim(test) = 6414    16
+train <- data[index.t, ] #dim(train) = 14946    15
+test <- data[-index.t, ] #dim(test) = 6405    15
 ```
 
 
@@ -260,7 +254,7 @@ test <- data[-index.t, ] #dim(test) = 6414    16
 
 ### Elastic Net 
 
-First, Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. 
+First, Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. `location` is excluded because `country` is a more general variable that describes the location in which the project is based, and including both would lead to high colinearity. 
 
 ```{r}
 # Prepare the design matrix and response for LASSO
@@ -278,7 +272,7 @@ fit1.cv <- cv.glmnet(X, Y, alpha=.9, family="binomial", nfolds = 10, type.measur
 plot(fit1.cv)
 ```
 
-fit1.cv\$lambda.1se is chosen because it has fewer variables.
+fit1.cv\$lambda.1se is chosen because both fit1.cv\$lambda.min and fit1.cv\$lambda.1se return the same number of variables.
 
 ```{r include=FALSE}
 coef.1se <- coef(fit1.cv, s="lambda.1se")  
@@ -286,7 +280,7 @@ coef.1se <- coef.1se[which(coef.1se !=0),] #pull out coefficients that aren't 0
 coef.1se   
 ```
 
-Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `country`, `duration_days`, `staff_pick`, `backers_count`, `deadline`, `goal`, and `usd_pledged`. 
+Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `backers_count`, `country`, `deadline`, `duration_days`, `staff_pick`, `goal`, and `usd_pledged`. 
 
 ### Logistic Regression
 
@@ -302,34 +296,22 @@ summary(fit.logit.1)
 Anova(fit.logit.1)
 ```
 
-### Backward Elimination 
-
-Backward elimination is performed to only keep variables that are significant at the 0.01 level. 
-
-First, `staff_pick` is removed because it has the highest p-value. 
-
-```{r, include=FALSE}
-# Remove staff_pick because it has highest the p-value
-fit.logit.2 <- update(fit.logit.1, .~. -staff_pick)
-Anova(fit.logit.2)
-```
-
-After backward elimination, the following seven variables are significant in the logistic regression model: `category`, `country`, `duration_days`, `backers_count`, `deadline`, `goal`, `usd_pledged`.
+Since all variables are significant at the 0.01 level, the final logistic model without the text variables include the following eight variables: `category`, `backers_count`, `country`, `deadline`, `duration_days`, `staff_pick`, `goal`, and `usd_pledged`.
 
 ### Evaluate the Logistic Regression Model 
 
-To evaluate the logistic regression model, `fit.logit.2`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
+To evaluate the logistic regression model, `fit.logit.1`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
 
 ```{r include=FALSE}
 #fit.logit.2
 #Predict successful on the testing data.
-fit.logit.2.test <- predict(fit.logit.2, test, type="response")
-fit.logit.2.pred <- ifelse(fit.logit.2.test >= 1/2, "1", "0")
-mce.logit <- mean(fit.logit.2.pred != test$successful)
+fit.logit.test <- predict(fit.logit.1, test, type="response")
+fit.logit.pred <- ifelse(fit.logit.test >= 1/2, "1", "0")
+mce.logit <- mean(fit.logit.pred != test$successful)
 mce.logit
 ```
 
-The testing missclassification error of the logistic regression model is about 0.097. Not bad! 
+The testing missclassification error of the logistic regression model is about 0.087. Not bad! 
 
 ## Random Forest
 
