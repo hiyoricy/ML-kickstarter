@@ -362,7 +362,12 @@ barplot(counts, main="Staff Pick",
 
 # Model Overview
 
+
+
+
 # Models
+Additionally, we also apply a Random Forest model on the dataset. Using the Ranger R package for efficient implementation of Random Forests, we hypertune the parameter selection size (mtry) per resampled tree to arrive at a nonparametric tree-based prediction model.
+ 
 
 ## Logistic Regression
 
@@ -434,6 +439,7 @@ The testing missclassification error of the logistic regression model is about 0
 
 
 ## Random Forest
+
 
 ```{r, eval=F}
 data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
