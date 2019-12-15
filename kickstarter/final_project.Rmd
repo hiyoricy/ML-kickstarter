@@ -366,15 +366,19 @@ sd(data$duration_days)
 
 # Model Overview
 
+
+For the first model, an Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. To locate a set of important features, a logistic regression using `glm()` is run with the variables obtained from Elastic Net on the training dataset.
+
+In all of the following models, `location` is excluded because `country` is a more general variable that describes the location in which a project is based and including both would lead to high colinearity. 
+
 # Models
 
 ## Logistic Regression
 
 ### Elastic Net 
 
-First, Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. `location` is excluded because `country` is a more general variable that describes the location in which the project is based, and including both would lead to high colinearity. 
 
-```{r}
+```{r include = FALSE}
 # Prepare the design matrix and response for LASSO
 X <- model.matrix(successful ~ data$backers_count + data$category
                   + data$country + data$deadline + data$launched_at
@@ -402,8 +406,6 @@ Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) ar
 
 ### Logistic Regression
 
-To locate a set of important features, a logistic regression using `glm()` is run with the variables obtained from Elastic Net above on the training dataset.
-
 ```{r include = FALSE}
 fit.logit.1 <- glm(successful ~ category + country + duration_days + staff_pick + backers_count
                    + deadline + goal + usd_pledged, family=binomial, data=train)
@@ -430,12 +432,6 @@ mce.logit
 ```
 
 The testing missclassification error of the logistic regression model is about 0.087. Not bad! 
-
-
-
-
-
-
 
 ## Random Forest
 
@@ -638,7 +634,14 @@ legend("bottomright",
 
 ```
 
+The MCEs of the models are as follows:
+| Model | MCE |
+|-----|-----|
+|Logistic Regression without Text| 0.087 |
+| Random Forest | 0.080 |
+| Logistic Regression with Text | 0.100 |
 
+According to MCE, the most accurate model is the Random Forest model because it has the lowest MCE. 
 
 # Final Model 
 
