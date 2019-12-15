@@ -25,7 +25,7 @@ urlcolor: blue
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(dplyr, ggplot2, tidyverse, jsonlite, lubridate, zoo)
+pacman::p_load(dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo)
 
 ```
 
@@ -57,7 +57,6 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 | `blurb` | A short summary at the top of project pages that describe/promote the project. |
 | `category` | The category of the project. This dataset includes 160 different categories, including "public Art," "software," "narrative film," etc. |
 | `slug` -> `description`| Select keywords to describe the project, renamed to description |
-| `converted_pledged_amount` | The amount pledged to the project in USD. |
 | `country` | The country in which the project is based. | 
 | `location` | The city and state in wich the project is based. |
 | `deadline` | The date and time of the deadline until which the project will raise funds. After the deadline, the project is determined to be "successful" or "failed" depending on whether it reached its funding goal. |
@@ -188,15 +187,101 @@ kick_data.f <- kick_data.f %>% select(to_use)
 ```
 
 ```{r}
+kick_data.f <- subset(kick_data.f, select = -converted_pledged_amount)
+```
+
+
+```{r}
 #final state
 str(kick_data.f)
+```
+
+```{r, include=FALSE}
+sapply(kick_data.f, function(x) any(is.na(x))) # any(is.na(var)) is very useful, it returns T/F for each var
+apply(kick_data.f, 2, function(x) any(is.na(x))) == TRUE  # apply function by columns: column-wise missing 
+apply(kick_data.f, 1, function(x) any(is.na(x)))  # apply function by rows: row-wise missing
+```
+
+```{r}
+sum(is.na(kick_data.f$location))
+sum(is.na(kick_data.f$blurb))
+```
+
+
+```{r}
+# split data into training and testing sets 
+set.seed(10)
+#First randomly sample a quarter of the data for computational purposes
+sample.size <- round(dim(kick_data.f) * 0.25)
+index.sample <- sample(nrow(kick_data.f), sample.size)
+data <- kick_data.f[index.sample, ] #dim(data) = 21381    16
+# use the 70/30 rule: set the training dataset size to be 70% of data size and testing to be 30%
+train.size <- round(dim(data) * 0.7)
+index.t <- sample(nrow(data), train.size)
+train <- data[index.t, ] #dim(train) = 14967    16
+test <- data[-index.t, ] #dim(test) = 6414    16
 ```
 
 # Model Overview
 
 # Models
 
+## LASSO
+
+```{r}
+# Prepare the design matrix and response for LASSO
+X <- model.matrix(successful ~ data$backers_count + data$category
+                  + data$country + data$deadline + data$launched_at
+                  + data$duration_days + data$goal + data$usd_pledged + data$staff_pick, data)[, -1]
+Y <- data$successful
+dim(X)
+length(Y)
+```
+
+```{r}
+set.seed(10) # to have same sets of K folds
+fit1.cv <- cv.glmnet(X, Y, alpha=.9, family="binomial", nfolds = 10, type.measure = "deviance")  
+plot(fit1.cv)
+```
+
+fit1.cv\$lambda.1se is chosen because it has fewer variables.
+
+```{r include=FALSE}
+coef.1se <- coef(fit1.cv, s="lambda.1se")  
+coef.1se <- coef.1se[which(coef.1se !=0),] #pull out coefficients that aren't 0 
+coef.1se   
+```
+
+Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `country`, `duration_days`, `staff_pick`, `backers_count`, `deadline`, `goal`, and `usd_pledged`. 
+
 ## Logistic Regression
+
+To locate a set of important features, a logistic regression using `glm()` is run with the variables obtained from Elastic Net above on the training dataset.
+
+```{r include = FALSE}
+fit.logit.1 <- glm(successful ~ category + country + duration_days + staff_pick + backers_count
+                   + deadline + goal + usd_pledged, family=binomial, data=train)
+summary(fit.logit.1)
+```
+```{r include=FALSE}
+Anova(fit.logit.1)
+```
+
+### Backward Elimination 
+
+Backward elimination is performed to only keep variables that are significant at the 0.01 level. 
+
+First, `staff_pick` is removed because it has the highest p-value. 
+
+```{r, include=FALSE}
+# Remove staff_pick because it has highest the p-value
+fit.logit.2 <- update(fit.logit.1, .~. -staff_pick)
+Anova(fit.logit.2)
+```
+
+After backward elimination, the following seven variables are significant in the logistic regression model: `category`, `country`, `duration_days`, `backers_count`, `deadline`, `goal`, `usd_pledged`.
+
+### Evaluate Logistic Regression Model 
 
 ## Random Forest
 
