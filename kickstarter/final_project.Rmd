@@ -259,7 +259,8 @@ barplot(counts, main="Country Distribution",
 15163/sum(counts)
 ```
 
-```{r include = FALSE}
+Among the 160 categories included in the dataset, "Web" is the most popular, with 429 projects. The top 10 categories, grouped by `successful`, are shown below. 
+```{r}
 #category EDA 
 cat_counts <- table(data$category)
 names(cat_counts)[which.max(cat_counts)]
@@ -267,13 +268,28 @@ max(cat_counts)
 
 names(cat_counts)[which.min(cat_counts)]
 min(cat_counts)
+
+cat_counts.df <- data.frame(cat_counts)
+
+cat.top.10 <- cat_counts.df %>% top_n(10)
+
+cat.top.10 <- data %>% select(successful, category) %>% group_by(category) %>% count() %>% arrange(desc(n)) %>% head(10) %>% ungroup
+
+cat.top.10.grouped <- data %>% filter(category %in% cat.top.10$category) %>% group_by(category, successful) %>% count() %>% ungroup
+
+cat.add <- data.frame(c("Accessories", "Comic Books", "Product Design", "Tabletop Games"),
+                      c("0", "0", "0", "0"),
+                      c("0", "0", "0", "0"))
+names(cat.add) <- c("category", "successful", "n")
+
+cat.top.10.grouped <- rbind(cat.top.10.grouped, cat.add)
+
+ggplot(cat.top.10.grouped, aes(x=category, y=n, group=successful, fill=successful)) + geom_bar(stat="identity", width=0.9) + labs(title="Top 10 Categories", x="Category", y = "Frequency") + scale_fill_brewer(palette="YlGn") + theme_classic() + theme(axis.text.x=element_text(angle=90, hjust=1), axis.text.y=element_blank())
 ```
 
-Among the 160 categories included in the dataset, "Web" is the most popular, with 429 projects. ???show top 10???
+The most popular successful category appears to be Hip-Hop, while the least 
 
-???Backers Count Histogram???
-
-The distribution of `backers_count` is highly skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. Because this high 
+The distribution of `backers_count` is highly skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. Because of this high range, the violin plot below only shows `backers_count` under 500 people. 
 
 ```{r}
 data.t1 <- data %>% filter(backers_count < 500)
@@ -290,7 +306,6 @@ summary(data$backers_count)
 sd(data$backers_count)
 ```
 
-???goal???
 Like `backers_count`, the distribution of `goal` is skewed right. The mean fundraising goal is about \$42900 with a large standard deviation of \$978141. The median is about $5000, with a large IQR of 15000-1500=\$13500. The large range of \$100000000 also shows that `goal` differs greatly among projects. 
 
 ```{r}
@@ -301,8 +316,6 @@ ggplot(data, aes(x=successful, y=log(goal), group=successful, fill=successful)) 
 summary(data$goal)
 sd(data$goal)
 ```
-
-???usd_pledged???
 
 The histogram of `usd_pledged`, the amount of money pledged to a project in USD, also looks very similar to `backers_count` and `goal`. The mean is \$12975, with a large standard deviation of \$96928. The median is $1500 with a large IQR of 6381-97=\$6284. The range is also large, \$6225355.  
 
