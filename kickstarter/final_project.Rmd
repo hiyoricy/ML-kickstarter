@@ -25,7 +25,7 @@ urlcolor: blue
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud)
+pacman::p_load(car, dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud)
 
 
 ```
@@ -191,7 +191,7 @@ kick_data.f$successful<- as.factor(as.numeric(ifelse(kick_data.f$state=="success
 As only last sanity check, we took only the columns we wanted to move forward with.
 ```{r}
 #double checking that we all desired columns and removing ids
-to_use<- c("state", "successful", "backers_count", "blurb", "category", "description", "converted_pledged_amount", "country","location", "deadline", "launched_at", "duration_days", "goal", "name","usd_pledged","staff_pick", "spotlight")
+to_use<- c("state", "successful", "backers_count", "blurb", "category", "description", "converted_pledged_amount", "country","location", "deadline", "launched_at", "duration_days", "goal", "name","usd_pledged","staff_pick")
 
 kick_data.f <- kick_data.f %>% select(to_use)
 ```
@@ -297,6 +297,7 @@ fit.logit.1 <- glm(successful ~ category + country + duration_days + staff_pick 
                    + deadline + goal + usd_pledged, family=binomial, data=train)
 summary(fit.logit.1)
 ```
+
 ```{r include=FALSE}
 Anova(fit.logit.1)
 ```
@@ -392,12 +393,13 @@ In the end, we ended up with 167 possible words to utilize as predictors.
 
 ### Data preparation
 Next, we used lasso to see what words are actually meaningful predictors for our data.
-
+    
+                  
 ```{r, eval=F}
-#data.text <- data %>% select(successful, category, country, duration_days, backers_count, deadline, goal, usd_pledged)
+data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
-data1.temp <- data.frame(as.matrix(dtm.10))   
-data1.temp$successful <- data$successful
+data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
+#data1.temp$successful <- data$successful
 data2 <- data1.temp %>% select(successful, everything())
 ```
 
@@ -406,36 +408,43 @@ data2 <- data1.temp %>% select(successful, everything())
 set.seed(1)
 n=nrow(data2)
 test.index <- sample(n, 0.3*n)
-length(test.index)
 data2.test <- data2[test.index, ] # only keep rating and the texts
 data2.train <- data2[-test.index, ]
-names(data2.train)
+```
+
+```{r}
+data2.train %>%head(5)
 ```
 
 ###LASSO
 
 ```{r}
 y.n <- data2.train$successful
-X.n <- as.matrix(data2.train[, -c(1)]) # we can use as.matrix directly here
+X.n <- model.matrix(successful~., data2.train)[,-1] # we can use as.matrix directly here
 set.seed(1)
 #### Be careful to run the following LASSO.
-result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0, family="binomial")  # 10 minutes in my MAC
+result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0.99, family="binomial")  # 10 minutes in my MAC
 # save(result.lasso, file="/Users/lzhao/Dropbox/STAT471/Data/TextMining.RData")
 ```
 
 ```{r}
 plot(result.lasso.text)
-beta.lasso <- coef(result.lasso.text, s="lambda.min")   # output lasso estimates
+beta.lasso <- coef(result.lasso.text, s="lambda.1se")   # output lasso estimates
 beta <- beta.lasso[which(beta.lasso !=0),] # non zero beta's
 beta <- as.matrix(beta)
 beta <- rownames(beta)
+non_word_beta <- beta[str_detect(beta, "backers_count|category|country|deadline|launched_at|duration_days|goal|usd_pledged|staff_pick")]
+
+word_beta <- beta[!str_detect(beta, "backers_count|category|country|deadline|launched_at|duration_days|goal|usd_pledged|staff_pick")]
+non_word_beta
 ```
 
 Taking a look at our lasso plot, we observe that lasso actually did not cut down any of the words. This suggests that there are no absolutely significant words that are included the description that can lead to success versus failure. Nevertheless, we decided to run a logistic regression on the word frequencies.
 
+
 ```{r}
 # Input the words from LASSO into glm
-glm.input <- as.formula(paste("successful", "~", paste(beta[-1],collapse = "+"))) # prepare the formulae
+glm.input <- as.formula(paste("successful~category+country+duration_days+goal+usd_pledged+staff_pick+", paste(word_beta[-1],collapse = "+"))) # prepare the formulae
 result.glm <- glm(glm.input, family=binomial, data2.train ) # instantly 
 
 # Testing errors
@@ -446,7 +455,7 @@ class.glm[predict.glm > .5] <- "1"
 
 testerror.glm <- mean(data2.test$successful != class.glm)
 testerror.glm
-#pROC::roc(data2.test$successful, predict.glm, plot=T) 
+pROC::roc(data2.test$successful, predict.glm, plot=T) 
 ```
 
 Using just the word frequency data, we got a much higher testing error of 0.36455. Using ROC, we saw an area under the curve of 0.6801. This higher error and lower accuracy shows that text data may not be the best in terms of helping us predict whether or not the product will be successful. This shows the overall subjectivity of the ratings.
@@ -473,15 +482,15 @@ success.word <- names(success.fre)  # good words with a decreasing order in the 
 fail.glm <- result.glm.coef[which(result.glm.coef < 0)]
 # names(bad.glm)[1:50]
 fail.fre <- sort(-fail.glm, decreasing = TRUE)
-#round(fail.fre, 4)[1:20]
+round(fail.fre, 4)[1:20]
 # hist(as.matrix(bad.fre), breaks=30, col="green")
 fail.word <- names(fail.fre)
 
 par(mfrow=c(1,2))
 cor.special <- brewer.pal(8,"Dark2") 
-wordcloud(good.word[1:20], good.fre[1:20], 
+wordcloud(success.word[1:20], success.fre[1:20], 
           colors=cor.special, ordered.colors=F)
-wordcloud(bad.word[1:20], bad.fre[1:20], 
+wordcloud(fail.word[1:20], fail.fre[1:20], 
           color=cor.special, ordered.colors=F)
 
 ```
