@@ -197,92 +197,6 @@ kick_data.f <- subset(kick_data.f, select = -converted_pledged_amount)
 str(kick_data.f)
 ```
 
-
-#Words
-
-```{r}
-mycorpus1 <- VCorpus( VectorSource(kick_data.f$blurb))
-mycorpus1
-typeof(mycorpus1)   ## It is a list
-# inspect the first corpus 
-inspect(mycorpus1[[1]])
-# or use `as.character` to extract the text
-as.character(mycorpus1[[1]])
-```
-
-```{r}
-mycorpus_clean <- tm_map(mycorpus1, content_transformer(tolower))
-mycorpus_clean <- tm_map(mycorpus_clean, removeWords, stopwords("english"))
-mycorpus_clean <- tm_map(mycorpus_clean, removePunctuation)
-mycorpus_clean <- tm_map(mycorpus_clean, removeNumbers)
-mycorpus_clean <- tm_map(mycorpus_clean, stemDocument, lazy = TRUE)   
-lapply(mycorpus_clean[4:5], as.character)
-```
-
-
-```{r}
-dtm1 <- DocumentTermMatrix( mycorpus_clean )   ## library = collection of words for all documents
-dtm1
-```
-
-
-```{r}
-threshold <- .005*length(mycorpus_clean)   # 1% of the total documents 
-words.10 <- findFreqTerms(dtm1, lowfreq=threshold)  # words appearing at least among 1% of the documents
-length(words.10)
-
-dtm.10<- DocumentTermMatrix(mycorpus_clean, control = list(dictionary = words.10))  
-dim(as.matrix(dtm.10))
-colnames(dtm.10)[1:50]
-```
-
-```{r}
-names(data)
-# Combine the original data with the text matrix
-data1.temp <- data.frame(kick_data.f,as.matrix(dtm.10) )   
-dim(data1.temp)
-names(data1.temp)[1:30]
-str(data1.temp)
-# data2 consists of date, rating and all the top 1% words
-#ata2 <- data1.temp[, c(1,7, 8,11, 14:ncol(data1.temp))]
-#names(data2)[1:20]
-#dim(data2)
-```
-
-```{r}
-data2
-```
-
-
-```{r}
-y <- data1.temp$successful
-X <- as.matrix(data1.temp[, -c(1,2)]) # we can use as.matrix directly here
-set.seed(2)
-
-#### Be careful to run the following LASSO.
-result.lasso <- cv.glmnet(X, y, alpha=.99, family="binomial")  # 10 minutes in my MAC
-#save(result.lasso, file="/Users/lzhao/Dropbox/STAT471/Data/TextMining.RData")
-
-### or try `sparse.model.matrix()` which is much faster
-#X1 <- sparse.model.matrix(successful~., data=data1.temp)[, -1]
-#dim(X1)
-#result.lasso.1 <- cv.glmnet(X1, y, alpha=.99, family="binomial")  # 1.5 minutes in my MAC
-#plot(result.lasso.1)
-plot(result.lasso)
-```
-
-```{r, include=FALSE}
-sapply(kick_data.f, function(x) any(is.na(x))) # any(is.na(var)) is very useful, it returns T/F for each var
-apply(kick_data.f, 2, function(x) any(is.na(x))) == TRUE  # apply function by columns: column-wise missing 
-apply(kick_data.f, 1, function(x) any(is.na(x)))  # apply function by rows: row-wise missing
-```
-
-```{r}
-sum(is.na(kick_data.f$location))
-sum(is.na(kick_data.f$blurb))
-```
-
-
 ```{r}
 # split data into training and testing sets 
 set.seed(10)
@@ -296,6 +210,7 @@ index.t <- sample(nrow(data), train.size)
 train <- data[index.t, ] #dim(train) = 14967    16
 test <- data[-index.t, ] #dim(test) = 6414    16
 ```
+
 
 # Model Overview
 
@@ -359,6 +274,10 @@ After backward elimination, the following seven variables are significant in the
 ### Evaluate Logistic Regression Model 
 
 ## Random Forest
+
+
+
+
 
 # Comparison of Methods 
 
