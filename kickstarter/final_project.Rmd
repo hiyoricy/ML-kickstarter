@@ -368,11 +368,9 @@ sd(data$duration_days)
 
 For the first model, an Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. To locate a set of important features, a logistic regression using `glm()` is run with the variables obtained from Elastic Net on the training dataset.
 
-
 For the final model, we looked to include text analysis on the `blurb` column of the data. We first created a document term-matrix and then took 165 mutually commom words as inputs. We then reran LASSO to limit the coefficients within our model, which we then inputted as variables into a logistic regression model using `glm()`.
 
 Additionally, we also apply a Random Forest model on the dataset. Using the Ranger R package for efficient implementation of Random Forests, we hypertune the parameter selection size (mtry) per resampled tree to arrive at a nonparametric tree-based prediction model.
- 
  
 In all of the following models, `location` is excluded because `country` is a more general variable that describes the location in which a project is based and including both would lead to high colinearity. 
 
@@ -664,4 +662,10 @@ Future improvements could include using data across several years or training a 
 # Appendix
 
 # Works Cited
+
+“Creator Handbook.” Kickstarter, https://www.kickstarter.com/help/handbook?ref=whatarebasics.
+
+“Kickstarter Datasets.” Web Scraping Service, 25 Nov. 2019, https://webrobots.io/kickstarter-datasets/.
+
+“What Are the Basics?” Kickstarter Support, https://help.kickstarter.com/hc/en-us/articles/115005028514-What-are-the-basics-.
 
