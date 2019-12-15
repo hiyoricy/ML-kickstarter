@@ -25,7 +25,7 @@ urlcolor: blue
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(car, dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud)
+pacman::p_load(car, dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud, ranger)
 ```
 
 # Summary 
@@ -440,34 +440,29 @@ mce.logit
 
 The testing missclassification error of the logistic regression model is about 0.087. Not bad! 
 
+
+
 ## Random Forest
 
-
 ```{r, eval=F}
-data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
+set.seed(1)
+
+data.for <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
-data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
+data1.temp <- data.frame(data.for, as.matrix(dtm.10))   
 #data1.temp$successful <- data$successful
-data2 <- data1.temp %>% select(successful, everything())
-```
+data.for.f <- data1.temp %>% select(successful, everything())
 
-```{r}
-#splitting our data into train test splits
-set.seed(1)
-n=nrow(data2)
+
+n=nrow(data.for.f)
 test.index <- sample(n, 0.3*n)
-data.text.test <- data2[test.index, ] # only keep rating and the texts
-data.text.train <- data2[-test.index, ]
-```
-
-```{r}
-set.seed(1)
-library(ranger)
+data.for.test <- data.for.f[test.index, ] # only keep rating and the texts
+data.for.train <- data.for.f[-test.index, ]
 
 rf.error.p <- 1:14
 for (p in 1:14) 
 {
-  fit.rf <-ranger(successful~., data.text.train, mtry=p, num.trees=250, splitrule = "gini",importance = "impurity", oob.error = TRUE)
+  fit.rf <-ranger(as.factor(successful)~., data=data.for.train, mtry=p, num.trees=250, splitrule = "gini",importance = "impurity", oob.error = TRUE)
   rf.error.p[p] <- fit.rf$prediction.error  # collecting oob mse based on 250 trees
 }
 rf.error.p # oob mse returned
@@ -477,18 +472,19 @@ plot(1:14, rf.error.p, pch=16,
      ylab="OOB mse of mtry",
      main = "Testing errors as func of mtry with Success as response")
 lines(1:14, rf.error.p)
+
 ```
 
+
 ```{r}
-RF.all <- ranger(successful~., data.text.train, mtry=4, # Although recommended mtry is p=n/3=15/3=5; we tune to get mtry=4
+RF.all <- ranger(successful~., data.for.train, mtry=4, # Although recommended mtry is p=n/3=15/3=5; we tune to get mtry=4
                  num.trees = 250, splitrule = "gini",importance = "impurity")
-RF.pred <-predict(RF.all, data.text.test, type = "response")
-RF.test.error <- mean(data.text.test$successful!=RF.pred$predictions)
+RF.pred <-predict(RF.all, data.for.test, type = "response")
+RF.test.error <- mean(data.for.test$successful!=RF.pred$predictions)
 
 RF.test.error
 RF.all$prediction.error
 ```
-
 
 
 ## Text Mining 
@@ -557,18 +553,14 @@ data.text <- data %>% select(successful, backers_count, category, country, deadl
 # Combine the original data with the text matrix
 data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
 #data1.temp$successful <- data$successful
-data2 <- data1.temp %>% select(successful, everything())
-```
+data.text.f<- data1.temp %>% select(successful, everything())
 
-```{r}
-#splitting our data into train test splits
-set.seed(1)
-n=nrow(data2)
+n=nrow(data.text.f)
 test.index <- sample(n, 0.3*n)
-data.text.test <- data2[test.index, ] # only keep rating and the texts
-data.text.train <- data2[-test.index, ]
-```
+data.text.test <- data.text.f[test.index, ] # only keep rating and the texts
+data.text.train <- data.text.f[-test.index, ]
 
+```
 
 ###LASSO
 
@@ -655,7 +647,7 @@ According to MCE, the most accurate model is the Random Forest model because it 
 
 # Validity of Results and Future Improvement 
 
-Some limitations of this model include the following. First, only data from November was used because including more data would have been too computationally overwhelming. Similarly, only a randomly sampled quarter of the November data was used for computational reasons. However, even after limiting the dataset, a significant amount of data (21351 observations) was used. Moreover, our model is ultimately predicting on the final state of the projects as opposed to predicting while the project is ongoing. We did not explore this because we are not quite adept at handling time series data, but we believe a future challenge could be prediciting projects during their live state as opposed to their final state.
+Some limitations of this model include the following. First, only data from November was used because including more data would have been too computationally overwhelming. Similarly, only a randomly sampled quarter of the November data was used for computational reasons. However, even after limiting the dataset, a significant amount of data (21351 observations) was used. Moreover, our model is ultimately predicting on the final state of the projects as opposed to predicting while the project is ongoing. A more sophisticated analysis would probably involve predicting the model from its beginning state and utilizing the rate of changes over time in its features like `backers_count` and do real-time predictions on whether or not the project is successful.
 
 
 Future improvements could include using data across several years or training a Bootstrap or Neural Network model. 
@@ -664,5 +656,47 @@ Future improvements could include using data across several years or training a 
 
 # Appendix
 
+##Word Cloud Analysis
+
+```{r}
+#Using only the docmuent term matrix
+data.cloud.temp <- data.frame(as.matrix(dtm.10))   
+data.cloud.temp$successful <- data$successful
+data.cloud <- data.cloud.temp %>% select(successful, everything())
+```
+
+
+```{r}
+# Input the words found by our dtm into glm
+glm.input <- as.formula(paste("successful", "~", paste(names(data.cloud)[-1],collapse = "+")))
+result.glm <- glm(glm.input, family=binomial, data.cloud) 
+```
+
+```{r, message=FALSE, warning=FALSE, results= TRUE}
+result.glm.coef <- coef(result.glm)
+# pick up the positive coef's which are positively related to the prob of being a good review
+success.glm <- result.glm.coef[which(result.glm.coef > 0)]
+success.glm <-success.glm[-1]  # took intercept out
+cor.special <- brewer.pal(8,"Dark2")  # set up a pretty color scheme
+success.fre <- sort(success.glm, decreasing = TRUE) # sort the coef's
+# hist(as.matrix(good.fre), breaks=30, col="red") 
+success.word <- names(success.fre)  # good words with a decreasing order in the coeff's
+fail.glm <- result.glm.coef[which(result.glm.coef < 0)]
+# names(bad.glm)[1:50]
+cor.special <- brewer.pal(6,"Dark2")
+fail.fre <- sort(-fail.glm, decreasing = TRUE)
+# hist(as.matrix(bad.fre), breaks=30, col="green")
+fail.word <- names(fail.fre)
+par(mfrow=c(1,2))
+cor.special <- brewer.pal(8,"Dark2") 
+wordcloud(success.word[1:20], fail.fre[1:20], 
+          colors=cor.special, ordered.colors=F)
+wordcloud(fail.word[1:20], fail.fre[1:20], 
+          color=cor.special, ordered.colors=F)
+par(mfrow=c(1,1))
+```
+
+
+Here, we see that "pin", which indicates whether or not it was on the front page, was the highest scoring word. This word was most likely autogenerated by Kickstarter and placed into the blurb for the projects that were doing well. Further analysis would look to probably remove this word in order to not give the model an advantage. Interestingly, we see words related to art/culture such as "comic" "modern" enamel" and "illust" to be dominant in successful businesses, whereas words related to business such as "app", "busi", "even", "product" were more common to the projects that failed. This seems to suggest that companies with more creative/art focused projects do better on kickstarter as opposed to "strictly business" companies.
 # Works Cited
 
