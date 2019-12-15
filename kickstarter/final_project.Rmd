@@ -613,6 +613,12 @@ testerror.glm
 pROC::roc(data.text.test$successful, predict.glm, plot=T) 
 ```
 
+```{r}
+Anova(result.glm)
+```
+
+
+
 Using just the word frequency data, we got a much higher testing error of 0.36455. Using ROC, we saw an area under the curve of 0.6801. This higher error and lower accuracy shows that text data may not be the best in terms of helping us predict whether or not the product will be successful. This shows the overall subjectivity of the ratings.
 
 # Comparison of Methods 
@@ -649,9 +655,11 @@ The MCEs of the models are as follows:
 | Random Forest | 0.080 |
 | Logistic Regression with Text | 0.100 |
 
-According to MCE, the most accurate model is the Random Forest model because it has the lowest MCE. 
+According to MCE, the most accurate model is the Random Forest model because it has the lowest MCE. However, according to the AUC scores of the final ROC plots, we determine that the overall most sensitive and specific model is the Logistic Regression with Text. The ROC curve plots how a discrimination threshold for classification as successful or failure, varied across different values, performs as a predictive model with regards to false positive and true positive diagnostic ability. As this Logistic Regression with Text model holds the highest AUC score from the ROC, we decide to ultimately select this model as our final model.
 
 # Final Model 
+
+Overall, we determine the final model across our various trails is the feature-engineered logistic regression that holds the text. Via text mining on the company names and description, we were able to include the additional information from text data in our predictive model. These additional features we engineered allowed us to construct a more accurate logisitc model after accounting for regularization from the Elastic Net that we also applied. The process from text mining to applying LASSO/Elastic Net to finally assessing the accuracy of our model via the MCE and aucROC allow us to conclude the important nature of text data and the significant company statistics in predicting the success of a kickstarter project. 
 
 # Validity of Results and Future Improvement
 
