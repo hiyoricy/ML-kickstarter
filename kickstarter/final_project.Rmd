@@ -75,8 +75,8 @@ The goal of this paper is to use attributes of existing Kickstarter projects in 
 kick_data <- read.csv("kick_data.csv", header=TRUE)
 ```
 
-```{r}
-head(kick_data)
+```{r include = FALSE}
+#head(kick_data)
 ```
 
 ```{r}
@@ -98,9 +98,8 @@ Next, we wanted to filter down our columns to the ones we detailed above. We als
 
 ```{r}
 #selecting columns to use, temporarily selecting id columns for merging and identification
-to_use<- c("id", "sub_id",  "state", "backers_count", "blurb", "slug", "category", "converted_pledged_amount", "country","location", "deadline", "launched_at", "goal", "name","usd_pledged","staff_pick", "spotlight")
+to_use<- c("id", "sub_id",  "state", "backers_count", "blurb", "slug", "category", "converted_pledged_amount", "country","location", "deadline", "launched_at", "goal", "name","usd_pledged","staff_pick")
 kick_data.f <- kick_data.f %>% select(to_use)
-
 ```
 
 
@@ -201,13 +200,6 @@ kick_data.f <- kick_data.f %>% select(to_use)
 kick_data.f <- subset(kick_data.f, select = -converted_pledged_amount)
 ```
 
-
-```{r}
-#final state
-str(kick_data.f)
-dim(kick_data.f)
-```
-
 ```{r, include=FALSE}
 #check which variables have NAs 
 sapply(kick_data.f, function(x) any(is.na(x))) # any(is.na(var)) is very useful, it returns T/F for each var
@@ -215,28 +207,30 @@ apply(kick_data.f, 2, function(x) any(is.na(x))) == TRUE  # apply function by co
 apply(kick_data.f, 1, function(x) any(is.na(x)))  # apply function by rows: row-wise missing
 ```
 
-The only columns with NAs appear to be `location` and `blurb.` There is one NA in `blurb` and 117 NAs in `location.` Since 117 is a significant number of NAs and there is no reasonable way to interpolate the names of cities in which projects are based, `location` is not considered in the following models.  
+The only columns with NAs appear to be `location` and `blurb.` There is one NA in `blurb` and 117 NAs in `location.` Since there is no reasonable way to interpolate the names of cities in which projects are based or the blurb of the project, rows that have NA values in `location` or `blurb` are removed from the dataset.   
 
-```{r}
+```{r include =FALSE}
 sum(is.na(kick_data.f$location))
 sum(is.na(kick_data.f$blurb))
 ```
 
-```{r}
+```{r include=FALSE}
 kick_data.f <- na.omit(kick_data.f)
+dim(kick_data.f)
+str(kick_data.f)
 ```
 
-The original dataset includes 85523 observations and 16 variables. For computational reasons, a quarter of the dataset is randomly sampled and used for the models instead of the entire dataset. 
+The dataset includes 85405 observations and 15 variables. For computational reasons, a quarter of the dataset is randomly sampled and used for the models instead of the entire dataset. 
 
 ```{r}
 set.seed(10)
 #First randomly sample a quarter of the data for computational purposes
 sample.size <- round(dim(kick_data.f) * 0.25)
 index.sample <- sample(nrow(kick_data.f), sample.size)
-data <- kick_data.f[index.sample, ] #dim(data) = 21381    16
+data <- kick_data.f[index.sample, ] #dim(data) = 21351        15
 ```
 
-The final dataset used for the models includes 21381 observations and 16 variables. 
+The final dataset used for the models includes 21351 observations and 15 variables. 
 
 The final dataset is split into training and testing sets, 70% for training and 30% for testing. 
 
@@ -247,10 +241,119 @@ set.seed(10)
 # use the 70/30 rule: set the training dataset size to be 70% of data size and testing to be 30%
 train.size <- round(dim(data) * 0.7)
 index.t <- sample(nrow(data), train.size)
-train <- data[index.t, ] #dim(train) = 14967    16
-test <- data[-index.t, ] #dim(test) = 6414    16
+train <- data[index.t, ] #dim(train) = 14946    15
+test <- data[-index.t, ] #dim(test) = 6405    15
 ```
 
+# Exploratory Data Analysis
+
+As shown below, 22 countries are represented in the dataset. 71% of the projects are based in the US. 
+```{r}
+#Bar chart of Countries 
+counts <- table(data$country)
+barplot(counts, main="Country Distribution",
+   xlab="Country", las=2, col=brewer.pal(22, name="YlGn"))
+```
+
+```{r include=FALSE}
+15163/sum(counts)
+```
+
+Among the 160 categories included in the dataset, "Web" is the most popular, with 429 projects. The top 10 categories, grouped by `successful`, are shown below. 
+```{r}
+#category EDA 
+cat_counts <- table(data$category)
+names(cat_counts)[which.max(cat_counts)]
+max(cat_counts)
+
+names(cat_counts)[which.min(cat_counts)]
+min(cat_counts)
+
+cat_counts.df <- data.frame(cat_counts)
+
+cat.top.10 <- cat_counts.df %>% top_n(10)
+
+cat.top.10 <- data %>% select(successful, category) %>% group_by(category) %>% count() %>% arrange(desc(n)) %>% head(10) %>% ungroup
+
+cat.top.10.grouped <- data %>% filter(category %in% cat.top.10$category) %>% group_by(category, successful) %>% count() %>% ungroup
+
+cat.add <- data.frame(c("Accessories", "Comic Books", "Product Design", "Tabletop Games"),
+                      c("0", "0", "0", "0"),
+                      c("0", "0", "0", "0"))
+names(cat.add) <- c("category", "successful", "n")
+
+cat.top.10.grouped <- rbind(cat.top.10.grouped, cat.add)
+
+ggplot(cat.top.10.grouped, aes(x=category, y=n, group=successful, fill=successful)) + geom_bar(stat="identity", width=0.9) + labs(title="Top 10 Categories", x="Category", y = "Frequency") + scale_fill_brewer(palette="YlGn") + theme_classic() + theme(axis.text.x=element_text(angle=90, hjust=1), axis.text.y=element_blank())
+```
+
+The most popular successful category appears to be Hip-Hop, while the least 
+
+The distribution of `backers_count` is highly skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. Because of this high range, the violin plot below only shows `backers_count` under 500 people. 
+
+```{r}
+data.t1 <- data %>% filter(backers_count < 500)
+
+data %>% filter(backers_count > 500) %>% count()
+```
+
+
+```{r}
+#violin plot of log backers count
+ggplot(data, aes(x=successful, y=log(backers_count), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of Backers Count",x="Successful", y = "Log(Backers Count)") + scale_fill_brewer(palette="Blues") + theme_classic()
+
+summary(data$backers_count)
+sd(data$backers_count)
+```
+
+Like `backers_count`, the distribution of `goal` is skewed right. The mean fundraising goal is about \$42900 with a large standard deviation of \$978141. The median is about $5000, with a large IQR of 15000-1500=\$13500. The large range of \$100000000 also shows that `goal` differs greatly among projects. 
+
+```{r}
+#violin plot of goal
+ggplot(data, aes(x=successful, y=log(goal), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of Goal" ,x="Successful", y = "Log(Goal)") + scale_fill_brewer(palette="Blues") + theme_classic()
+
+
+summary(data$goal)
+sd(data$goal)
+```
+
+The histogram of `usd_pledged`, the amount of money pledged to a project in USD, also looks very similar to `backers_count` and `goal`. The mean is \$12975, with a large standard deviation of \$96928. The median is $1500 with a large IQR of 6381-97=\$6284. The range is also large, \$6225355.  
+
+```{r}
+#histogram of usd_pledged
+ggplot(data, aes(x=successful, y=log(usd_pledged), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of USD Pledged" ,x="Successful", y = "Log(USD Pledged)") + scale_fill_brewer(palette="Blues") + theme_classic()
+
+
+summary(data$usd_pledged)
+sd(data$usd_pledged)
+```
+
+As the histogram below shows, the distribution of deadlines for projects is skewed left, which is expected since the projects are those that exist in November 2019. The majority of projects have a deadline in the range 2014-2019. Late 2014 to early 2015 appears to have the most deadlines for projects. 
+
+```{r}
+#histogram of deadlines 
+histogram <- hist(data$deadline, breaks = 40, xlab = "Deadline Date", ylab = "Frequency", 
+               main = "Histogram of Deadline",col = brewer.pal(30, name="YlGn"))
+```
+
+The histogram of `duration_days` shows two modes, one at around 30 days and the other at around 60 days. This suggests that most projects are live for about a month, while others are live for about 2 months. The mean is about 32.7 days, with a standard deviation of 12 days. 
+
+```{r}
+#histogram of duration_days
+histogram <- hist(data$duration_days, breaks = 40, xlab = "Duration in Days", ylab = "Frequency", 
+               main = "Histogram of Duration of Project in Days",col = brewer.pal(30, name="YlGn"))
+summary(data$duration_days)
+sd(data$duration_days)
+```
+
+The bar chart of `staff_pick` shows that most projects are not chosen to be featured by the staff as part of the "Projects We Love" program. This suggests that the projects that are chosen are particularly featureable.
+
+```{r}
+#Bar chart of staff_pick 
+counts <- table(data$staff_pick)
+barplot(counts, main="Staff Pick",
+   xlab="Staff Pick", las=2, col=brewer.pal(2, name="YlGn"))
+```
 
 # Model Overview
 
@@ -260,7 +363,7 @@ test <- data[-index.t, ] #dim(test) = 6414    16
 
 ### Elastic Net 
 
-First, Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. 
+First, Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. `location` is excluded because `country` is a more general variable that describes the location in which the project is based, and including both would lead to high colinearity. 
 
 ```{r}
 # Prepare the design matrix and response for LASSO
@@ -278,7 +381,7 @@ fit1.cv <- cv.glmnet(X, Y, alpha=.9, family="binomial", nfolds = 10, type.measur
 plot(fit1.cv)
 ```
 
-fit1.cv\$lambda.1se is chosen because it has fewer variables.
+fit1.cv\$lambda.1se is chosen because both fit1.cv\$lambda.min and fit1.cv\$lambda.1se return the same number of variables.
 
 ```{r include=FALSE}
 coef.1se <- coef(fit1.cv, s="lambda.1se")  
@@ -286,7 +389,7 @@ coef.1se <- coef.1se[which(coef.1se !=0),] #pull out coefficients that aren't 0
 coef.1se   
 ```
 
-Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `country`, `duration_days`, `staff_pick`, `backers_count`, `deadline`, `goal`, and `usd_pledged`. 
+Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `backers_count`, `country`, `deadline`, `duration_days`, `staff_pick`, `goal`, and `usd_pledged`. 
 
 ### Logistic Regression
 
@@ -302,34 +405,22 @@ summary(fit.logit.1)
 Anova(fit.logit.1)
 ```
 
-### Backward Elimination 
-
-Backward elimination is performed to only keep variables that are significant at the 0.01 level. 
-
-First, `staff_pick` is removed because it has the highest p-value. 
-
-```{r, include=FALSE}
-# Remove staff_pick because it has highest the p-value
-fit.logit.2 <- update(fit.logit.1, .~. -staff_pick)
-Anova(fit.logit.2)
-```
-
-After backward elimination, the following seven variables are significant in the logistic regression model: `category`, `country`, `duration_days`, `backers_count`, `deadline`, `goal`, `usd_pledged`.
+Since all variables are significant at the 0.01 level, the final logistic model without the text variables include the following eight variables: `category`, `backers_count`, `country`, `deadline`, `duration_days`, `staff_pick`, `goal`, and `usd_pledged`.
 
 ### Evaluate the Logistic Regression Model 
 
-To evaluate the logistic regression model, `fit.logit.2`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
+To evaluate the logistic regression model, `fit.logit.1`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
 
 ```{r include=FALSE}
 #fit.logit.2
 #Predict successful on the testing data.
-fit.logit.2.test <- predict(fit.logit.2, test, type="response")
-fit.logit.2.pred <- ifelse(fit.logit.2.test >= 1/2, "1", "0")
-mce.logit <- mean(fit.logit.2.pred != test$successful)
+fit.logit.test <- predict(fit.logit.1, test, type="response")
+fit.logit.pred <- ifelse(fit.logit.test >= 1/2, "1", "0")
+mce.logit <- mean(fit.logit.pred != test$successful)
 mce.logit
 ```
 
-The testing missclassification error of the logistic regression model is about 0.097. Not bad! 
+The testing missclassification error of the logistic regression model is about 0.087. Not bad! 
 
 
 
