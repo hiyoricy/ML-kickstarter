@@ -1,11 +1,11 @@
 ---
-title: "[CATCHY TITLE]"
+title: "How to Get a Kickstart: An Analysis of Kickstarter Success"
 author:
 - Hoyt Gong
 - Younghu Park
 - Hiyori Yoshida
 output:
-  pdf_document:
+  word_document:
     toc: yes
     toc_depth: '4'
   html_document:
@@ -15,7 +15,7 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
-  word_document:
+  pdf_document:
     toc: yes
     toc_depth: '4'
 urlcolor: blue
@@ -434,7 +434,7 @@ The testing missclassification error of the logistic regression model is about 0
 
 ## Random Forest
 
-```{r, include=FALSE}
+```{r include=FALSE}
 set.seed(1)
 data.for <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
@@ -539,7 +539,8 @@ In the end, we ended up with 167 possible words to utilize as predictors.
 Next, we used lasso to see what words are actually meaningful predictors for our data.
     
                   
-```{r}
+
+```{r include = FALSE}
 data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
 data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
