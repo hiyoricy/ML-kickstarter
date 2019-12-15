@@ -653,7 +653,8 @@ According to MCE, the most accurate model is the Random Forest model because it 
 
 # Validity of Results and Future Improvement 
 
-Some limitations of this model include the following. First, only data from November was used because including more data would have been too computationally overwhelming. Similarly, only a randomly sampled quarter of the November data was used for computational reasons. However, even after limiting the dataset, a significant amount of data (21351 observations) was used. 
+Some limitations of this model include the following. First, only data from November was used because including more data would have been too computationally overwhelming. Similarly, only a randomly sampled quarter of the November data was used for computational reasons. However, even after limiting the dataset, a significant amount of data (21351 observations) was used. Moreover, our model is ultimately predicting on the final state of the projects as opposed to predicting while the project is ongoing. We did not explore this because we are not quite adept at handling time series data, but we believe a future challenge could be prediciting projects during their live state as opposed to their final state.
+
 
 Future improvements could include using data across several years or training a Bootstrap or Neural Network model. 
 
