@@ -76,7 +76,7 @@ kick_data <- read.csv("kick_data.csv", header=TRUE)
 ```
 
 ```{r include = FALSE}
-head(kick_data)
+#head(kick_data)
 ```
 
 ```{r}
