@@ -331,7 +331,60 @@ mce.logit
 
 The testing missclassification error of the logistic regression model is about 0.097. Not bad! 
 
+
+
+
+
+
+
 ## Random Forest
+
+```{r, eval=F}
+data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
+# Combine the original data with the text matrix
+data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
+#data1.temp$successful <- data$successful
+data2 <- data1.temp %>% select(successful, everything())
+```
+
+```{r}
+#splitting our data into train test splits
+set.seed(1)
+n=nrow(data2)
+test.index <- sample(n, 0.3*n)
+data.text.test <- data2[test.index, ] # only keep rating and the texts
+data.text.train <- data2[-test.index, ]
+```
+
+```{r}
+set.seed(1)
+library(ranger)
+
+rf.error.p <- 1:14
+for (p in 1:14) 
+{
+  fit.rf <-ranger(successful~., data.text.train, mtry=p, num.trees=250, splitrule = "gini",importance = "impurity", oob.error = TRUE)
+  rf.error.p[p] <- fit.rf$prediction.error  # collecting oob mse based on 250 trees
+}
+rf.error.p # oob mse returned
+
+plot(1:14, rf.error.p, pch=16,
+     xlab="mtry",
+     ylab="OOB mse of mtry",
+     main = "Testing errors as func of mtry with Success as response")
+lines(1:14, rf.error.p)
+```
+
+```{r}
+RF.all <- ranger(successful~., data.text.train, mtry=4, # Although recommended mtry is p=n/3=15/3=5; we tune to get mtry=4
+                 num.trees = 250, splitrule = "gini",importance = "impurity")
+RF.pred <-predict(RF.all, data.text.test, type = "response")
+RF.test.error <- mean(data.text.test$successful!=RF.pred$predictions)
+
+RF.test.error
+RF.all$prediction.error
+```
+
 
 
 ## Text Mining 
@@ -446,6 +499,7 @@ result.glm <- glm(glm.input, family=binomial, data.text.train ) # instantly
 
 # Testing errors
 
+data.text.test <- data.text.test %>% filter(category != "Taxidermy") 
 predict.glm <- predict(result.glm, data.text.test, type = "response")
 class.glm <- rep("0", nrow(data.text.test))
 class.glm[predict.glm > .5] <- "1"
@@ -458,6 +512,33 @@ pROC::roc(data.text.test$successful, predict.glm, plot=T)
 Using just the word frequency data, we got a much higher testing error of 0.36455. Using ROC, we saw an area under the curve of 0.6801. This higher error and lower accuracy shows that text data may not be the best in terms of helping us predict whether or not the product will be successful. This shows the overall subjectivity of the ratings.
 
 # Comparison of Methods 
+
+```{r}
+library(pROC)
+fit1.roc <-roc(test$successful, as.numeric(fit.logit.2.pred)) #Hiroyi
+fit2.roc <-roc(data.text.test$successful, predict.glm) #Younghu
+fit3.roc <-roc(data.text.test$successful, as.numeric(RF.pred$predictions)) #Hoyt
+
+```
+
+
+```{r}
+plot(1-fit1.roc$specificities,
+     fit1.roc$sensitivities, col="red", lwd=3, type="l",
+     xlab="False Positive",
+     ylab="Sensitivity")
+lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="blue", lwd=3)
+lines(1-fit3.roc$specificities, fit3.roc$sensitivities, col="green", lwd=3)
+legend("bottomright",
+       c(paste0("fit1 AUC=",round(fit1.roc$auc,2)),
+         paste0("fit.final AUC=",round(fit2.roc$auc, 2)),
+         paste0("fit3 AUC=",round(fit3.roc$auc, 2))),
+       col=c("red", "blue", "green"),
+       lty=1)
+
+```
+
+
 
 # Final Model 
 
