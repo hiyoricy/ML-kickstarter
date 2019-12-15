@@ -26,8 +26,6 @@ urlcolor: blue
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(car, dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud)
-
-
 ```
 
 # Summary 
@@ -247,6 +245,8 @@ test <- data[-index.t, ] #dim(test) = 6405    15
 
 # Exploratory Data Analysis
 
+##Categorical Variables
+
 As shown below, 22 countries are represented in the dataset. 71% of the projects are based in the US. 
 ```{r}
 #Bar chart of Countries 
@@ -289,14 +289,22 @@ ggplot(cat.top.10.grouped, aes(x=category, y=n, group=successful, fill=successfu
 
 The most popular successful category appears to be Hip-Hop, while the least 
 
-The distribution of `backers_count` is highly skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. Because of this high range, the violin plot below only shows `backers_count` under 500 people. 
+
+
+The bar chart of `staff_pick` shows that most projects are not chosen to be featured by the staff as part of the "Projects We Love" program. This suggests that the projects that are chosen are particularly featureable.
 
 ```{r}
-data.t1 <- data %>% filter(backers_count < 500)
-
-data %>% filter(backers_count > 500) %>% count()
+#Bar chart of staff_pick 
+counts <- table(data$staff_pick)
+barplot(counts, main="Staff Pick",
+   xlab="Staff Pick", las=2, col=brewer.pal(2, name="YlGn"))
 ```
 
+
+##Continuous Variables
+Now, we want to analyse several continuous variables. First we look at the distribution of `backers_count`. The distribution of `backers_count` is highly skewed right. The mean is 139 backers, with a large standard deviation of 980 backers. The median is 26 backers, with a large  interquartile range of 86-3=83 backers. Since the minimum number of backers is 0 while the maximum is 91585, `backers_count` has a wide range. Because of this high range, the violin plot below only shows `backers_count` under 500 people. 
+
+Below is a violin plot seperating out the data by their `successful` tag. For visualization purposes, we took the log of `backers_count`.  Looking at the plots, we see that the median `backers_count` is significantly higher for successful projects than for unsuccessful ones. 
 
 ```{r}
 #violin plot of log backers count
@@ -306,18 +314,21 @@ summary(data$backers_count)
 sd(data$backers_count)
 ```
 
-Like `backers_count`, the distribution of `goal` is skewed right. The mean fundraising goal is about \$42900 with a large standard deviation of \$978141. The median is about $5000, with a large IQR of 15000-1500=\$13500. The large range of \$100000000 also shows that `goal` differs greatly among projects. 
+
+Next, we look at `goal`.  Like `backers_count`, the distribution of `goal` is skewed right. The mean fundraising goal is about \$42900 with a large standard deviation of \$978141. The median is about $5000, with a large IQR of 15000-1500=\$13500. The large range of \$100000000 also shows that `goal` differs greatly among projects. Taking a look at the violin plot below, we see that the median goal for unsuccessful projects is higher than successful projects. This suggests that projects with more ambitious goals are less likely to succeed.
 
 ```{r}
-#violin plot of goal
-ggplot(data, aes(x=successful, y=log(goal), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of Goal" ,x="Successful", y = "Log(Goal)") + scale_fill_brewer(palette="Blues") + theme_classic()
-
 
 summary(data$goal)
 sd(data$goal)
+
+#violin plot of goal
+ggplot(data, aes(x=successful, y=log(goal), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of Goal" ,x="Successful", y = "Log(Goal)") + scale_fill_brewer(palette="Blues") + theme_classic()
 ```
 
-The histogram of `usd_pledged`, the amount of money pledged to a project in USD, also looks very similar to `backers_count` and `goal`. The mean is \$12975, with a large standard deviation of \$96928. The median is $1500 with a large IQR of 6381-97=\$6284. The range is also large, \$6225355.  
+
+
+For `usd_pledged`, the mean is \$12975, with a large standard deviation of \$96928. The median is $1500 with a large IQR of 6381-97=\$6284. The range is also large, \$6225355. Looking at the violin plots below, we see a much higher amount pledged for successful projects than for unsuccessful projects. The distribution for amount pledged for unsuccessful pledges is relatively wider than successful projects.
 
 ```{r}
 #histogram of usd_pledged
@@ -328,7 +339,8 @@ summary(data$usd_pledged)
 sd(data$usd_pledged)
 ```
 
-As the histogram below shows, the distribution of deadlines for projects is skewed left, which is expected since the projects are those that exist in November 2019. The majority of projects have a deadline in the range 2014-2019. Late 2014 to early 2015 appears to have the most deadlines for projects. 
+
+Now taking a look at `deadline`, as the histogram below shows, the distribution of deadlines for projects is skewed left, which is expected since the projects are those that exist in November 2019. The majority of projects have a deadline in the range 2014-2019. Late 2014 to early 2015 appears to have the most deadlines for projects. 
 
 ```{r}
 #histogram of deadlines 
@@ -346,14 +358,6 @@ summary(data$duration_days)
 sd(data$duration_days)
 ```
 
-The bar chart of `staff_pick` shows that most projects are not chosen to be featured by the staff as part of the "Projects We Love" program. This suggests that the projects that are chosen are particularly featureable.
-
-```{r}
-#Bar chart of staff_pick 
-counts <- table(data$staff_pick)
-barplot(counts, main="Staff Pick",
-   xlab="Staff Pick", las=2, col=brewer.pal(2, name="YlGn"))
-```
 
 # Model Overview
 
