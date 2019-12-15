@@ -438,7 +438,7 @@ The testing missclassification error of the logistic regression model is about 0
 
 ## Random Forest
 
-```{r, eval=F}
+```{r include=FALSE}
 set.seed(1)
 
 data.for <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
@@ -543,7 +543,7 @@ In the end, we ended up with 167 possible words to utilize as predictors.
 Next, we used lasso to see what words are actually meaningful predictors for our data.
     
                   
-```{r, eval=F}
+```{r include = FALSE}
 data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
 data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
