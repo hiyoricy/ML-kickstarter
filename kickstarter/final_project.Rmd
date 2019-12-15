@@ -368,11 +368,9 @@ sd(data$duration_days)
 
 For the first model, an Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. To locate a set of important features, a logistic regression using `glm()` is run with the variables obtained from Elastic Net on the training dataset.
 
-
 For the final model, we looked to include text analysis on the `blurb` column of the data. We first created a document term-matrix and then took 165 mutually commom words as inputs. We then reran LASSO to limit the coefficients within our model, which we then inputted as variables into a logistic regression model using `glm()`.
 
 Additionally, we also apply a Random Forest model on the dataset. Using the Ranger R package for efficient implementation of Random Forests, we hypertune the parameter selection size (mtry) per resampled tree to arrive at a nonparametric tree-based prediction model.
- 
  
 In all of the following models, `location` is excluded because `country` is a more general variable that describes the location in which a project is based and including both would lead to high colinearity. 
 
@@ -659,13 +657,28 @@ According to MCE, the most accurate model is the Random Forest model because it 
 
 # Final Model 
 
+<<<<<<< HEAD
 Overall, we determine the final model across our various trails is the feature-engineered logistic regression that holds the text. Via text mining on the company names and description, we were able to include the additional information from text data in our predictive model. These additional features we engineered allowed us to construct a more accurate logisitc model after accounting for regularization from the Elastic Net that we also applied. The process from text mining to applying LASSO/Elastic Net to finally assessing the accuracy of our model via the MCE and aucROC allow us to conclude the important nature of text data and the significant company statistics in predicting the success of a kickstarter project. 
 
 # Validity of Results and Future Improvement
+=======
+# Validity of Results and Future Improvement 
+
+Some limitations of this model include the following. First, only data from November was used because including more data would have been too computationally overwhelming. Similarly, only a randomly sampled quarter of the November data was used for computational reasons. However, even after limiting the dataset, a significant amount of data (21351 observations) was used. Moreover, our model is ultimately predicting on the final state of the projects as opposed to predicting while the project is ongoing. We did not explore this because we are not quite adept at handling time series data, but we believe a future challenge could be prediciting projects during their live state as opposed to their final state.
+
+
+Future improvements could include using data across several years or training a Bootstrap or Neural Network model. 
+>>>>>>> c43b52b02a30345d4b28eab9743a2654cfed473c
 
 # Conclusion
 
 # Appendix
 
 # Works Cited
+
+“Creator Handbook.” Kickstarter, https://www.kickstarter.com/help/handbook?ref=whatarebasics.
+
+“Kickstarter Datasets.” Web Scraping Service, 25 Nov. 2019, https://webrobots.io/kickstarter-datasets/.
+
+“What Are the Basics?” Kickstarter Support, https://help.kickstarter.com/hc/en-us/articles/115005028514-What-are-the-basics-.
 
