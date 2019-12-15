@@ -188,6 +188,7 @@ kick_data.f <- kick_data.f %>% select(to_use)
 ```
 
 ```{r}
+#remove converted_pledged_amount because it is the same as usd_pledged, just converted differently 
 kick_data.f <- subset(kick_data.f, select = -converted_pledged_amount)
 ```
 
@@ -195,8 +196,46 @@ kick_data.f <- subset(kick_data.f, select = -converted_pledged_amount)
 ```{r}
 #final state
 str(kick_data.f)
+dim(kick_data.f)
 ```
 
+```{r, include=FALSE}
+#check which variables have NAs 
+sapply(kick_data.f, function(x) any(is.na(x))) # any(is.na(var)) is very useful, it returns T/F for each var
+apply(kick_data.f, 2, function(x) any(is.na(x))) == TRUE  # apply function by columns: column-wise missing 
+apply(kick_data.f, 1, function(x) any(is.na(x)))  # apply function by rows: row-wise missing
+```
+
+The only columns with NAs appear to be `location` and `blurb.` There is one NA in `blurb` and 117 NAs in `location.` Since 117 is a significant number of NAs and there is no reasonable way to interpolate the names of cities in which projects are based, `location` is not considered in the following models.  
+
+```{r}
+sum(is.na(kick_data.f$location))
+sum(is.na(kick_data.f$blurb))
+```
+
+The original dataset includes 85523 observations and 16 variables. For computational reasons, a quarter of the dataset is randomly sampled and used for the models instead of the entire dataset. 
+
+```{r}
+set.seed(10)
+#First randomly sample a quarter of the data for computational purposes
+sample.size <- round(dim(kick_data.f) * 0.25)
+index.sample <- sample(nrow(kick_data.f), sample.size)
+data <- kick_data.f[index.sample, ] #dim(data) = 21381    16
+```
+
+The final dataset used for the models includes 21381 observations and 16 variables. 
+
+The final dataset is split into training and testing sets, 70% for training and 30% for testing. 
+
+```{r}
+#split the data into training and testing sets 
+set.seed(10)
+# use the 70/30 rule: set the training dataset size to be 70% of data size and testing to be 30%
+train.size <- round(dim(data) * 0.7)
+index.t <- sample(nrow(data), train.size)
+train <- data[index.t, ] #dim(train) = 14967    16
+test <- data[-index.t, ] #dim(test) = 6414    16
+```
 
 #Words
 
@@ -271,37 +310,15 @@ result.lasso <- cv.glmnet(X, y, alpha=.99, family="binomial")  # 10 minutes in m
 plot(result.lasso)
 ```
 
-```{r, include=FALSE}
-sapply(kick_data.f, function(x) any(is.na(x))) # any(is.na(var)) is very useful, it returns T/F for each var
-apply(kick_data.f, 2, function(x) any(is.na(x))) == TRUE  # apply function by columns: column-wise missing 
-apply(kick_data.f, 1, function(x) any(is.na(x)))  # apply function by rows: row-wise missing
-```
-
-```{r}
-sum(is.na(kick_data.f$location))
-sum(is.na(kick_data.f$blurb))
-```
-
-
-```{r}
-# split data into training and testing sets 
-set.seed(10)
-#First randomly sample a quarter of the data for computational purposes
-sample.size <- round(dim(kick_data.f) * 0.25)
-index.sample <- sample(nrow(kick_data.f), sample.size)
-data <- kick_data.f[index.sample, ] #dim(data) = 21381    16
-# use the 70/30 rule: set the training dataset size to be 70% of data size and testing to be 30%
-train.size <- round(dim(data) * 0.7)
-index.t <- sample(nrow(data), train.size)
-train <- data[index.t, ] #dim(train) = 14967    16
-test <- data[-index.t, ] #dim(test) = 6414    16
-```
-
 # Model Overview
 
 # Models
 
-## LASSO
+## Logistic Regression
+
+### Elastic Net 
+
+First, Elastic Net is used to limit the size of the coefficient vector and impose sparcity among the coefficients. 
 
 ```{r}
 # Prepare the design matrix and response for LASSO
@@ -329,7 +346,7 @@ coef.1se
 
 Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `country`, `duration_days`, `staff_pick`, `backers_count`, `deadline`, `goal`, and `usd_pledged`. 
 
-## Logistic Regression
+### Logistic Regression
 
 To locate a set of important features, a logistic regression using `glm()` is run with the variables obtained from Elastic Net above on the training dataset.
 
@@ -356,7 +373,20 @@ Anova(fit.logit.2)
 
 After backward elimination, the following seven variables are significant in the logistic regression model: `category`, `country`, `duration_days`, `backers_count`, `deadline`, `goal`, `usd_pledged`.
 
-### Evaluate Logistic Regression Model 
+### Evaluate the Logistic Regression Model 
+
+To evaluate the logistic regression model, `fit.logit.2`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
+
+```{r include=FALSE}
+#fit.logit.2
+#Predict successful on the testing data.
+fit.logit.2.test <- predict(fit.logit.2, test, type="response")
+fit.logit.2.pred <- ifelse(fit.logit.2.test >= 1/2, "1", "0")
+mce.logit <- mean(fit.logit.2.pred != test$successful)
+mce.logit
+```
+
+The testing missclassification error of the logistic regression model is about 0.097. Not bad! 
 
 ## Random Forest
 
