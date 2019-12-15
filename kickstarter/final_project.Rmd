@@ -278,19 +278,14 @@ The distribution of `backers_count` is highly skewed right. The mean is 139 back
 ```{r}
 data.t1 <- data %>% filter(backers_count < 500)
 
-
-data.t1 %>% count()
+data %>% filter(backers_count > 500) %>% count()
 ```
 
 
 ```{r}
-boxplot.backers <- boxplot(data.t1$backers_count, breaks = 40, xlab = "Backers Count", 
-               main = "Histogram of Backers Count",col = brewer.pal(22, name="YlGn"))
-#remove everything above 1950
+#violin plot of log backers count
+ggplot(data, aes(x=successful, y=log(backers_count), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of Backers Count",x="Successful", y = "Log(Backers Count)") + scale_fill_brewer(palette="Blues") + theme_classic()
 
-#histogram of backers_count
-histogram.backers <- hist(data.t1$backers_count, breaks = 40, xlab = "Backers Count", 
-               main = "Histogram of Backers Count",col = brewer.pal(22, name="YlGn"))
 summary(data$backers_count)
 sd(data$backers_count)
 ```
@@ -299,9 +294,10 @@ sd(data$backers_count)
 Like `backers_count`, the distribution of `goal` is skewed right. The mean fundraising goal is about \$42900 with a large standard deviation of \$978141. The median is about $5000, with a large IQR of 15000-1500=\$13500. The large range of \$100000000 also shows that `goal` differs greatly among projects. 
 
 ```{r}
-#histogram of goal
-histogram <- hist(data$goal, breaks = 40, xlab = "Goal ($)", ylab = "Frequency", 
-               main = "Histogram of Goal in Dollars",col = brewer.pal(2, name="YlGn"))
+#violin plot of goal
+ggplot(data, aes(x=successful, y=log(goal), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of Goal" ,x="Successful", y = "Log(Goal)") + scale_fill_brewer(palette="Blues") + theme_classic()
+
+
 summary(data$goal)
 sd(data$goal)
 ```
@@ -312,8 +308,9 @@ The histogram of `usd_pledged`, the amount of money pledged to a project in USD,
 
 ```{r}
 #histogram of usd_pledged
-histogram <- hist(data$usd_pledged, breaks = 40, xlab = "Money Pledged ($)", ylab = "Frequency", 
-               main = "Histogram of Money Pledged in Dollars",col = brewer.pal(2, name="YlGn"))
+ggplot(data, aes(x=successful, y=log(usd_pledged), group=successful, fill=successful)) + geom_violin(trim=FALSE)+ geom_boxplot(width=0.1, fill="white") + labs(title="Successful versus Log of USD Pledged" ,x="Successful", y = "Log(USD Pledged)") + scale_fill_brewer(palette="Blues") + theme_classic()
+
+
 summary(data$usd_pledged)
 sd(data$usd_pledged)
 ```
