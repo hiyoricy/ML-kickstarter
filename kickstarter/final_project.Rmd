@@ -1,11 +1,11 @@
 ---
-title: "[CATCHY TITLE]"
+title: "How to Get a Kickstart: An Analysis of Kickstarter Success"
 author:
 - Hoyt Gong
 - Younghu Park
 - Hiyori Yoshida
 output:
-  word_document:
+  pdf_document:
     toc: yes
     toc_depth: '4'
   html_document:
@@ -15,7 +15,7 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
-  pdf_document:
+  word_document:
     toc: yes
     toc_depth: '4'
 urlcolor: blue
@@ -374,9 +374,6 @@ In all of the following models, `location` is excluded because `country` is a mo
 # Models
 
 
-## Logistic Regression
-
-
 ### Elastic Net 
 
 
@@ -408,13 +405,13 @@ Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) ar
 
 ### Logistic Regression
 
-```{r include = FALSE}
+```{r include = FALSE, cache=TRUE}
 fit.logit.1 <- glm(successful ~ category + country + duration_days + staff_pick + backers_count
                    + deadline + goal + usd_pledged, family=binomial, data=train)
 summary(fit.logit.1)
 ```
 
-```{r include=FALSE}
+```{r eval=FALSE}
 Anova(fit.logit.1)
 ```
 
@@ -424,7 +421,7 @@ Since all variables are significant at the 0.01 level, the final logistic model 
 
 To evaluate the logistic regression model, `fit.logit.1`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
 
-```{r include=FALSE}
+```{r include=FALSE, cache=TRUE}
 #fit.logit.2
 #Predict successful on the testing data.
 fit.logit.test <- predict(fit.logit.1, test, type="response")
@@ -436,17 +433,15 @@ mce.logit
 The testing missclassification error of the logistic regression model is about 0.087. Not bad! 
 
 
-
 ## Random Forest
 
-```{r, eval=F}
+```{r include=FALSE}
 set.seed(1)
-
 data.for <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
-data1.temp <- data.frame(data.for, as.matrix(dtm.10))   
+#data1.temp <- data.frame(data.for, as.matrix(dtm.10))   
 #data1.temp$successful <- data$successful
-data.for.f <- data1.temp %>% select(successful, everything())
+data.for.f <- data.for %>% select(successful, everything())
 
 
 n=nrow(data.for.f)
@@ -454,19 +449,19 @@ test.index <- sample(n, 0.3*n)
 data.for.test <- data.for.f[test.index, ] # only keep rating and the texts
 data.for.train <- data.for.f[-test.index, ]
 
-rf.error.p <- 1:14
-for (p in 1:14) 
+rf.error.p <- 1:9
+for (p in 1:9) 
 {
-  fit.rf <-ranger(as.factor(successful)~., data=data.for.train, mtry=p, num.trees=250, splitrule = "gini",importance = "impurity", oob.error = TRUE)
+  fit.rf <-ranger(as.factor(successful)~., data.for.train, mtry=p, num.trees=250, splitrule = "gini",importance = "impurity", oob.error = TRUE)
   rf.error.p[p] <- fit.rf$prediction.error  # collecting oob mse based on 250 trees
 }
 rf.error.p # oob mse returned
 
-plot(1:14, rf.error.p, pch=16,
+plot(1:9, rf.error.p, pch=16,
      xlab="mtry",
      ylab="OOB mse of mtry",
      main = "Testing errors as func of mtry with Success as response")
-lines(1:14, rf.error.p)
+lines(1:9, rf.error.p)
 
 ```
 
@@ -509,6 +504,7 @@ mycorpus1
 Before we transform our text into a word frequency matrix, we needed to standardized the text. Similar to our model in class, we used  `removeNumbers()`, `removePunctuation()`, `removeWords()`, `stemDocument()`, and `stripWhitespace()` to go about cleaning our data.
 
 ```{r}
+#cleaning
 mycorpus_clean <- tm_map(mycorpus1, content_transformer(tolower))
 mycorpus_clean <- tm_map(mycorpus_clean, removeWords, stopwords("english"))
 mycorpus_clean <- tm_map(mycorpus_clean, removePunctuation)
@@ -535,7 +531,7 @@ words.10 <- findFreqTerms(dtm1, lowfreq=threshold)  # words appearing at least a
 ```{r}
 dtm.10<- DocumentTermMatrix(mycorpus_clean, control = list(dictionary = words.10))  
 dim(as.matrix(dtm.10))
-colnames(dtm.10)[1:25]
+colnames(dtm.10)[1:25] #preview
 ```
 
 In the end, we ended up with 167 possible words to utilize as predictors.
@@ -544,7 +540,8 @@ In the end, we ended up with 167 possible words to utilize as predictors.
 Next, we used lasso to see what words are actually meaningful predictors for our data.
     
                   
-```{r, eval=F}
+
+```{r include = FALSE, cache=TRUE}
 data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
 data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
@@ -560,31 +557,31 @@ data.text.train <- data.text.f[-test.index, ]
 
 ###LASSO
 
-```{r}
+```{r include=FALSE, cache=TRUE}
 y.n <- data.text.train$successful
-X.n <- model.matrix(successful~., data.text.train)[,-1] # we can use as.matrix directly here
+X.n <- model.matrix(successful~., data.text.train)[,-1] 
 set.seed(1)
-#### Be careful to run the following LASSO.
-result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0.99, family="binomial")  # 10 minutes in my MAC
-# save(result.lasso, file="/Users/lzhao/Dropbox/STAT471/Data/TextMining.RData")
+result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0.99, family="binomial") 
 ```
 
-```{r}
+```{r cache = TRUE}
 plot(result.lasso.text)
 beta.lasso <- coef(result.lasso.text, s="lambda.1se")   # output lasso estimates
 beta <- beta.lasso[which(beta.lasso !=0),] # non zero beta's
 beta <- as.matrix(beta)
 beta <- rownames(beta)
+#non-word-frequency features
 non_word_beta <- beta[str_detect(beta, "backers_count|category|country|deadline|launched_at|duration_days|goal|usd_pledged|staff_pick")]
 
+#word-frequency features
 word_beta <- beta[!str_detect(beta, "backers_count|category|country|deadline|launched_at|duration_days|goal|usd_pledged|staff_pick")]
-non_word_beta
+length(word_beta)
 ```
 
-Taking a look at our lasso plot, we observe that lasso actually did not cut down any of the words. This suggests that there are no absolutely significant words that are included the description that can lead to success versus failure. Nevertheless, we decided to run a logistic regression on the word frequencies.
+In order to get the number of words it preserved, we first filtered out any features that were not related to word frequency. We then saw that lasso preserved 161 words out of 167, which is still quite a significant amount. This suggests that there may not be that much common difference in distribution in word frequencies between successful and failed projects.  Nevertheless, we decided to run a logistic regression on the word frequencies.
 
 
-```{r}
+```{r cache=TRUE}
 # Input the words from LASSO into glm
 glm.input <- as.formula(paste("successful~category+country+duration_days+goal+usd_pledged+staff_pick+", paste(word_beta[-1],collapse = "+"))) # prepare the formulae
 result.glm <- glm(glm.input, family=binomial, data.text.train ) # instantly 
@@ -601,19 +598,14 @@ testerror.glm
 pROC::roc(data.text.test$successful, predict.glm, plot=T) 
 ```
 
-```{r}
-Anova(result.glm)
-```
 
-
-
-Using just the word frequency data, we got a much higher testing error of 0.36455. Using ROC, we saw an area under the curve of 0.6801. This higher error and lower accuracy shows that text data may not be the best in terms of helping us predict whether or not the product will be successful. This shows the overall subjectivity of the ratings.
+Adding in text data,we actually saw our testing error increase to 0.1188. However, taking a look at our ROC, we saw a ROC of 95.4%, meaning that the data did very well in predicting our test data!
 
 # Comparison of Methods 
 
 ```{r}
 library(pROC)
-fit1.roc <-roc(test$successful, as.numeric(fit.logit.2.pred)) #Hiroyi
+fit1.roc <-roc(test$successful, as.numeric(fit.logit.pred)) #Hiroyi
 fit2.roc <-roc(data.text.test$successful, predict.glm) #Younghu
 fit3.roc <-roc(data.text.test$successful, as.numeric(RF.pred$predictions)) #Hoyt
 
@@ -641,7 +633,7 @@ The MCEs of the models are as follows:
 |-----|-----|
 |Logistic Regression without Text| 0.087 |
 | Random Forest | 0.080 |
-| Logistic Regression with Text | 0.100 |
+| Logistic Regression with Text | 0.118 |
 
 According to MCE, the most accurate model is the Random Forest model because it has the lowest MCE. However, according to the AUC scores of the final ROC plots, we determine that the overall most sensitive and specific model is the Logistic Regression with Text. The ROC curve plots how a discrimination threshold for classification as successful or failure, varied across different values, performs as a predictive model with regards to false positive and true positive diagnostic ability. As this Logistic Regression with Text model holds the highest AUC score from the ROC, we decide to ultimately select this model as our final model.
 
@@ -656,6 +648,8 @@ Future improvements could include using data across several years or training a 
 # Conclusion
 
 The final model suggests that future Kickstarter creators may increase their chances of success by focusing on the category and the country in which the project is based. Creators should try to limit the number of days to keep their project live since an increase in `duration_days` decreases the log odds of success. Having an earlier deadline, i.e. closer to the current date, increases the log odds of success, so creators should avoid setting deadlines too far into the future. Since a dollar increase in the funding goal decreases the log odds of success, creators should avoid setting goals that are too high compared to other projects on Kickstarter. Creators should aim to get their projects featured in the "Projects We Love" program, as `staff_pick` being true increases the log odds of success. Finally, as expected, creators should aim to obtain more backers and pledged money, as increases in both of these increases the log odds of success. 
+
+Further analysis on word frequency differences can be found within the Appendix.
 
 Overall, this project shows that success of Kickstarter projects can be relatively accurately predicted using public features of the projects. 
 
@@ -703,6 +697,8 @@ par(mfrow=c(1,1))
 
 
 Here, we see that "pin", which indicates whether or not it was on the front page, was the highest scoring word. This word was most likely autogenerated by Kickstarter and placed into the blurb for the projects that were doing well. Further analysis would look to probably remove this word in order to not give the model an advantage. Interestingly, we see words related to art/culture such as "comic" "modern" enamel" and "illust" to be dominant in successful businesses, whereas words related to business such as "app", "busi", "even", "product" were more common to the projects that failed. This seems to suggest that companies with more creative/art focused projects do better on kickstarter as opposed to "strictly business" companies.
+
+
 # Works Cited
 
 “Creator Handbook.” Kickstarter, https://www.kickstarter.com/help/handbook?ref=whatarebasics.
