@@ -22,19 +22,20 @@ urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning = F)
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(car, dplyr, ggplot2, glmnet, tidyverse, jsonlite, lubridate, zoo,tm, SnowballC, RColorBrewer, wordcloud, ranger)
 ```
 
-# Summary 
+# Introduction
+## Summary 
 
 The dataset that we used comes from [scraping kickstarter projects across 2019] (https://webrobots.io/kickstarter-datasets/?fbclid=IwAR2_FwI9w0M7loFhTbALyzQ0knddvD8M6IPqYQKuJ-jAP2gAc9vr4CEz95o) and consists of various characteristics of these crowdsourced companies/projects. Our dataset captures all past and current kickstarter project postings as of the November 14, 2019 scrape date from the website. 
 
 As the burgeoning landscape of startups are shifting towards [alternative sources of funding outside traditional Venture Capital funding] (https://www.nytimes.com/2019/01/11/technology/start-ups-rejecting-venture-capital.html) , an increasing number of founders are turning towards crowdsourcing. [Kickstarter] (https://help.kickstarter.com/hc/en-us/articles/115005028514-What-are-the-basics-) is arguably the most well known crowdsourcing online platform where founders can post their projects for financial backing. Since Kickstarter’s founding in 2009, over 450,000 projects have successfully raised more than $4.6 billion on the platform from 17.2 million friends, family and fans who want to help get those ventures off the ground. These supporters, officially termed backers by Kickstarter, are the cardinal drivers in this grassroots-style fundraising strategy of the entrepreneurship ecosystem. Importantly, while founders are turning to these crowdsourcing methods for purposes of de-risking and reducing financial leverage from external institutions, it currently has a [37.44% success rate] (https://www.statista.com/statistics/235405/kickstarter-project-funding-success-rate/) as defined by the multinational data portal, Statista. As such, we are interested in building a predictive classification model that can forecast the success of a Kickstarter project based on its features. For advisory purposes, we hope that this project’s multifactorial analysis can provide insight into critical characteristics of a successful project on Kickstarter for recommendation to future companies hoping to raise capital via online crowdsourcing. Beyond a founder’s perspective, our analysis is also insightful for cases of dual-financing where investors and financial analysts from the sell-side are able to adjust project valuation based on our model results.  
 
 
-# Description of the Problem
+## Description of the Problem
 
 First, some terms are defined to help explain how Kickstarter works. 
 
@@ -50,7 +51,7 @@ Creators who seek funding on Kickstarter want their projects to succeed so they 
 
 The goal of this paper is to use attributes of existing Kickstarter projects in classifiers to predict whether a project will succeed or fail. Determining the atrributes of a project that are most valuable in predicting success can help creators design their projects to maximize their chances of reaching their funding goal. 
 
-# Description of the Data
+## Description of the Data
 
 [Web Robots](https://webrobots.io/kickstarter-datasets/) has been scraping data from Kickstarter projects monthly starting March 2016. The most recent data from November 2019 is used in this project. The response variable that is predicted in this project is `successful`, a categorical variable that is either 1 for "successful" or 0 for "failed". The original data includes "canceled" as a state, which are converted to "failed". This is because it is assumed that canceled projects would likely have failed. The following independent variables are considered in the analysis: 
 
@@ -264,11 +265,11 @@ Among the 160 categories included in the dataset, "Web" is the most popular, wit
 ```{r}
 #category EDA 
 cat_counts <- table(data$category)
-names(cat_counts)[which.max(cat_counts)]
-max(cat_counts)
+#names(cat_counts)[which.max(cat_counts)]
+#max(cat_counts)
 
-names(cat_counts)[which.min(cat_counts)]
-min(cat_counts)
+#names(cat_counts)[which.min(cat_counts)]
+#min(cat_counts)
 
 cat_counts.df <- data.frame(cat_counts)
 
@@ -288,8 +289,7 @@ cat.top.10.grouped <- rbind(cat.top.10.grouped, cat.add)
 ggplot(cat.top.10.grouped, aes(x=category, y=n, group=successful, fill=successful)) + geom_bar(stat="identity", width=0.9) + labs(title="Top 10 Categories", x="Category", y = "Frequency") + scale_fill_brewer(palette="YlGn") + theme_classic() + theme(axis.text.x=element_text(angle=90, hjust=1), axis.text.y=element_blank())
 ```
 
-The most popular successful category appears to be Hip-Hop, while the least 
-
+The most popular successful category appears to be Hip-Hop, while the least popular is Taxidermy.
 
 
 The bar chart of `staff_pick` shows that most projects are not chosen to be featured by the staff as part of the "Projects We Love" program. This suggests that the projects that are chosen are particularly featureable.
@@ -340,25 +340,8 @@ summary(data$usd_pledged)
 sd(data$usd_pledged)
 ```
 
-
+See appendix for additional analysis on `deadline` and `duration_days`.
 Now taking a look at `deadline`, as the histogram below shows, the distribution of deadlines for projects is skewed left, which is expected since the projects are those that exist in November 2019. The majority of projects have a deadline in the range 2014-2019. Late 2014 to early 2015 appears to have the most deadlines for projects. 
-
-```{r}
-#histogram of deadlines 
-histogram <- hist(data$deadline, breaks = 40, xlab = "Deadline Date", ylab = "Frequency", 
-               main = "Histogram of Deadline",col = brewer.pal(30, name="YlGn"))
-```
-
-The histogram of `duration_days` shows two modes, one at around 30 days and the other at around 60 days. This suggests that most projects are live for about a month, while others are live for about 2 months. The mean is about 32.7 days, with a standard deviation of 12 days. 
-
-```{r}
-#histogram of duration_days
-histogram <- hist(data$duration_days, breaks = 40, xlab = "Duration in Days", ylab = "Frequency", 
-               main = "Histogram of Duration of Project in Days",col = brewer.pal(30, name="YlGn"))
-summary(data$duration_days)
-sd(data$duration_days)
-```
-
 
 # Model Overview
 
@@ -389,7 +372,6 @@ length(Y)
 ```{r}
 set.seed(10) # to have same sets of K folds
 fit1.cv <- cv.glmnet(X, Y, alpha=.9, family="binomial", nfolds = 10, type.measure = "deviance")  
-plot(fit1.cv)
 ```
 
 fit1.cv\$lambda.1se is chosen because both fit1.cv\$lambda.min and fit1.cv\$lambda.1se return the same number of variables.
@@ -402,7 +384,7 @@ coef.1se
 
 Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) are outputted by the above Elastic Net with the corresponding categorical variable, the following eight variables are outputted by Elastic Net: `category`, `backers_count`, `country`, `deadline`, `duration_days`, `staff_pick`, `goal`, and `usd_pledged`. 
 
-### Logistic Regression
+## Logistic Regression Without Text
 
 ```{r include = FALSE, cache=TRUE}
 fit.logit.1 <- glm(successful ~ category + country + duration_days + staff_pick + backers_count
@@ -554,7 +536,7 @@ data.text.train <- data.text.f[-test.index, ]
 
 ```
 
-###LASSO
+### Elastic Net Plots
 
 ```{r include=FALSE, cache=TRUE}
 y.n <- data.text.train$successful
@@ -564,7 +546,6 @@ result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0.99, family="binomial")
 ```
 
 ```{r cache = TRUE}
-plot(result.lasso.text)
 beta.lasso <- coef(result.lasso.text, s="lambda.1se")   # output lasso estimates
 beta <- beta.lasso[which(beta.lasso !=0),] # non zero beta's
 beta <- as.matrix(beta)
@@ -594,7 +575,7 @@ class.glm[predict.glm > .5] <- "1"
 
 testerror.glm <- mean(data.text.test$successful != class.glm)
 testerror.glm
-pROC::roc(data.text.test$successful, predict.glm, plot=T) 
+#pROC::roc(data.text.test$successful, predict.glm, plot=T) 
 ```
 
 
@@ -606,7 +587,7 @@ Adding in text data,we actually saw our testing error increase to 0.1188. Howeve
 library(pROC)
 fit1.roc <-roc(test$successful, as.numeric(fit.logit.pred)) #Hiroyi
 fit2.roc <-roc(data.text.test$successful, predict.glm) #Younghu
-fit3.roc <-roc(data.text.test$successful, as.numeric(RF.pred$predictions)) #Hoyt
+fit3.roc <-roc(data.for.test$successful, as.numeric(RF.pred$predictions)) #Hoyt
 
 ```
 
@@ -653,6 +634,40 @@ Further analysis on word frequency differences can be found within the Appendix.
 Overall, this project shows that success of Kickstarter projects can be relatively accurately predicted using public features of the projects. 
 
 # Appendix
+
+
+##Additional EDA
+
+
+```{r}
+#histogram of deadlines 
+histogram <- hist(data$deadline, breaks = 40, xlab = "Deadline Date", ylab = "Frequency", 
+               main = "Histogram of Deadline",col = brewer.pal(30, name="YlGn"))
+```
+
+The histogram of `duration_days` shows two modes, one at around 30 days and the other at around 60 days. This suggests that most projects are live for about a month, while others are live for about 2 months. The mean is about 32.7 days, with a standard deviation of 12 days. 
+
+```{r}
+#histogram of duration_days
+histogram <- hist(data$duration_days, breaks = 40, xlab = "Duration in Days", ylab = "Frequency", 
+               main = "Histogram of Duration of Project in Days",col = brewer.pal(30, name="YlGn"))
+summary(data$duration_days)
+sd(data$duration_days)
+```
+
+## Elastic Net Plots
+
+```{r}
+#elastic net without text
+plot(fit1.cv)
+```
+
+
+```{r}
+#elastic neet with text
+plot(result.lasso.text)
+```
+
 
 ##Word Cloud Analysis
 
