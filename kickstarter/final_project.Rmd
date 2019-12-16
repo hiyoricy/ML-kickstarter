@@ -404,13 +404,13 @@ Replacing the variables for which factor levels (`categoryPunk`, `countryMX`) ar
 
 ### Logistic Regression
 
-```{r include = FALSE}
+```{r include = FALSE, cache=TRUE}
 fit.logit.1 <- glm(successful ~ category + country + duration_days + staff_pick + backers_count
                    + deadline + goal + usd_pledged, family=binomial, data=train)
 summary(fit.logit.1)
 ```
 
-```{r include=FALSE}
+```{r eval=FALSE}
 Anova(fit.logit.1)
 ```
 
@@ -420,7 +420,7 @@ Since all variables are significant at the 0.01 level, the final logistic model 
 
 To evaluate the logistic regression model, `fit.logit.1`, the 1/2 thresholding rule is used for predicting `successful` on the testing data.
 
-```{r include=FALSE}
+```{r include=FALSE, cache=TRUE}
 #fit.logit.2
 #Predict successful on the testing data.
 fit.logit.test <- predict(fit.logit.1, test, type="response")
@@ -540,7 +540,7 @@ Next, we used lasso to see what words are actually meaningful predictors for our
     
                   
 
-```{r include = FALSE}
+```{r include = FALSE, cache=TRUE}
 data.text <- data %>% select(successful, backers_count, category, country, deadline, launched_at, duration_days, goal, usd_pledged, staff_pick)
 # Combine the original data with the text matrix
 data1.temp <- data.frame(data.text, as.matrix(dtm.10))   
@@ -556,16 +556,14 @@ data.text.train <- data.text.f[-test.index, ]
 
 ###LASSO
 
-```{r, include=FALSE}
+```{r include=FALSE, cache=TRUE}
 y.n <- data.text.train$successful
-X.n <- model.matrix(successful~., data.text.train)[,-1] # we can use as.matrix directly here
+X.n <- model.matrix(successful~., data.text.train)[,-1] 
 set.seed(1)
-#### Be careful to run the following LASSO.
-result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0.99, family="binomial")  # 10 minutes in my MAC
-# save(result.lasso, file="/Users/lzhao/Dropbox/STAT471/Data/TextMining.RData")
+result.lasso.text <- cv.glmnet(X.n, y.n, alpha=0.99, family="binomial") 
 ```
 
-```{r}
+```{r cache = TRUE}
 plot(result.lasso.text)
 beta.lasso <- coef(result.lasso.text, s="lambda.1se")   # output lasso estimates
 beta <- beta.lasso[which(beta.lasso !=0),] # non zero beta's
@@ -582,7 +580,7 @@ length(word_beta)
 In order to get the number of words it preserved, we first filtered out any features that were not related to word frequency. We then saw that lasso preserved 161 words out of 167, which is still quite a significant amount. This suggests that there may not be that much common difference in distribution in word frequencies between successful and failed projects.  Nevertheless, we decided to run a logistic regression on the word frequencies.
 
 
-```{r}
+```{r cache=TRUE}
 # Input the words from LASSO into glm
 glm.input <- as.formula(paste("successful~category+country+duration_days+goal+usd_pledged+staff_pick+", paste(word_beta[-1],collapse = "+"))) # prepare the formulae
 result.glm <- glm(glm.input, family=binomial, data.text.train ) # instantly 
@@ -606,7 +604,7 @@ Adding in text data,we actually saw our testing error increase to 0.1188. Howeve
 
 ```{r}
 library(pROC)
-fit1.roc <-roc(test$successful, as.numeric(fit.logit.2.pred)) #Hiroyi
+fit1.roc <-roc(test$successful, as.numeric(fit.logit.pred)) #Hiroyi
 fit2.roc <-roc(data.text.test$successful, predict.glm) #Younghu
 fit3.roc <-roc(data.text.test$successful, as.numeric(RF.pred$predictions)) #Hoyt
 
