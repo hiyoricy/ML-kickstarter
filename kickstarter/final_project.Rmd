@@ -227,6 +227,7 @@ set.seed(10)
 sample.size <- round(dim(kick_data.f) * 0.25)
 index.sample <- sample(nrow(kick_data.f), sample.size)
 data <- kick_data.f[index.sample, ] #dim(data) = 21351        15
+
 ```
 
 The final dataset used for the models includes 21351 observations and 15 variables. 
